@@ -1,0 +1,24 @@
+name: Deploy Aventure Panel
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: 📥 Récupération du nouveau code
+        uses: actions/checkout@v3
+
+      - name: 🔐 Création du fichier de mots de passe (.env)
+        run: |
+          cd backend
+          echo "CRAFTY_TOKEN=${{ secrets.CRAFTY_TOKEN }}" > .env
+          echo "CRAFTY_API_URL=${{ secrets.CRAFTY_API_URL }}" >> .env
+
+      - name: 🐳 Nettoyage et Lancement de Docker Compose
+        run: |
+          docker compose down
+          docker compose up -d --build
