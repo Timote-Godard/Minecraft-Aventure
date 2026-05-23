@@ -4,7 +4,7 @@ const cors = require('cors');
 const sqlite3 = require('sqlite3').verbose();
 
 const app = express();
-app.use(cors());
+app.use(cors({ origin: 'https://minecraft.timote.ovh' }));
 app.use(express.json());
 
 const CRAFTY_TOKEN = process.env.CRAFTY_TOKEN;

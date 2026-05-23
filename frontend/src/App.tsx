@@ -11,7 +11,7 @@ export default function App() {
 
   // Charger la liste des joueurs depuis la BDD SQLite au démarrage
   useEffect(() => {
-    fetch('https://api-minecraft/api/players')
+    fetch('https://api-minecraft.timote.ovh/api/players')
       .then(res => res.json())
       .then(data => {
         setPlayersList(data)
@@ -22,7 +22,7 @@ export default function App() {
   const handleBuySword = () => {
     if (!selectedPlayerUuid) return;
 
-    fetch('https://api-minecraft/api/shop/buy-sword', {
+    fetch('https://api-minecraft.timote.ovh/api/shop/buy-sword', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ uuid: selectedPlayerUuid })
