@@ -7,6 +7,11 @@ RUN npm install
 
 COPY . .
 
-EXPOSE 5000
+# On compile le site
+RUN npm run build
 
-CMD ["node", "server.js"]
+# On installe 'serve' globalement pour ne plus utiliser npx
+RUN npm install -g serve
+
+# On lance le serveur sans poser de questions
+CMD ["serve", "-s", "dist", "-l", "5001"]
