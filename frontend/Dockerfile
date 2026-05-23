@@ -1,4 +1,5 @@
-FROM node:22-alpine
+FROM node:22
+
 WORKDIR /app
 
 COPY package*.json ./
@@ -6,6 +7,6 @@ RUN npm install
 
 COPY . .
 
-RUN npm run build
+EXPOSE 5000
 
-CMD ["npx", "serve", "-s", "dist", "-l", "5001"]
+CMD ["node", "server.js"]
