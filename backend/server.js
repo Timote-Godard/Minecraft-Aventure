@@ -120,8 +120,7 @@ app.post('/api/login', async (req, res) => {
             // 3. On envoie tout ça à React !
             res.json({ 
                 success: true,
-                token: token, 
-                uuid: playerUuid,
+                token: token,
                 pseudo: playerData[0].pseudo,
                 solde: playerData[0].solde
             });

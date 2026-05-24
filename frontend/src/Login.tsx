@@ -2,12 +2,11 @@ import { useState } from 'react';
 
 interface LoginProps {
   setIsLoggedIn: (value: boolean) => void;
-  setSelectedPlayerUuid: (uuid: string) => void;
   setPseudo: (pseudo: string) => void;
   setSolde: (solde: number) => void;
 }
 
-export default function Login({setIsLoggedIn,setSelectedPlayerUuid,setPseudo,setSolde} : LoginProps) {
+export default function Login({setIsLoggedIn,setPseudo,setSolde} : LoginProps) {
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
 
@@ -26,7 +25,6 @@ export default function Login({setIsLoggedIn,setSelectedPlayerUuid,setPseudo,set
       
       if (res.ok) {
         setIsLoggedIn(true);
-        setSelectedPlayerUuid(data.uuid);
         setPseudo(data.pseudo);
         setSolde(data.solde);
 

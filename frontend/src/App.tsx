@@ -12,7 +12,6 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('map')
 
   // --- INFORMATIONS DU JOUEUR
-  const [selectedPlayerUuid, setSelectedPlayerUuid] = useState('')
   const [pseudo, setPseudo] = useState('')
   const [solde, setSolde] = useState<number>(0);
   
@@ -25,8 +24,6 @@ export default function App() {
       // Si on trouve un ticket, on le décode
       const userData = JSON.parse(savedSession);
       
-      // Et on remet tous les états comme avant !
-      setSelectedPlayerUuid(userData.uuid);
       setPseudo(userData.pseudo);
       setSolde(userData.solde);
       setIsLoggedIn(true);
@@ -66,7 +63,6 @@ export default function App() {
     localStorage.removeItem('aventure_session');
     localStorage.removeItem('aventure_token'); //🧹 On jette le bracelet à la poubelle
     setIsLoggedIn(false);
-    setSelectedPlayerUuid('');
     setPseudo('');
     setSolde(0);
   };
@@ -78,7 +74,7 @@ export default function App() {
   // =========================================================================
   if (!isLoggedIn) {
     return (
-      <Login setIsLoggedIn={setIsLoggedIn} setSelectedPlayerUuid={setSelectedPlayerUuid} setPseudo={setPseudo} setSolde={setSolde}/>
+      <Login setIsLoggedIn={setIsLoggedIn} setPseudo={setPseudo} setSolde={setSolde}/>
     );
   }
 
