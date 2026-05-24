@@ -28,7 +28,16 @@ export default function Login({setIsLoggedIn,setSelectedPlayerUuid,setPseudo,set
         setIsLoggedIn(true);
         setSelectedPlayerUuid(data.uuid);
         setPseudo(data.pseudo);
-        setSolde(data.solde);  
+        setSolde(data.solde);
+
+        // 💾 On sauvegarde les infos ET le jeton de sécurité !
+        localStorage.setItem('aventure_token', data.token);
+        localStorage.setItem('aventure_session', JSON.stringify({
+            uuid: data.uuid,
+            pseudo: data.pseudo,
+            solde: data.solde
+        }));
+        
       } else {
         alert("❌ Erreur : " + data.error);
       }
