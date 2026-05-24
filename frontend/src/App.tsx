@@ -3,6 +3,7 @@ import Login from "./Login";
 import Map from "./Map";
 import Boutique from "./Boutique";
 import Header from "./Header";
+import Inventaire from "./Inventaire";
 
 export default function App() {
   // --- ÉTATS D'AUTHENTIFICATION ---
@@ -103,21 +104,20 @@ export default function App() {
         >
           🛒 Armurerie
         </button>
+        <button 
+          onClick={() => setActiveTab('inventory')}
+          className={`text-xl font-black uppercase border-4 border-black px-8 py-3 rounded-xl shadow-[6px_6px_0px_0px_#000] transition-all active:translate-x-1 active:translate-y-1 active:shadow-none 
+            ${activeTab === 'inventory' ? 'bg-[#ffde4d] text-black -translate-y-1' : 'bg-white hover:bg-gray-100'}`}
+        >
+          🎒 Sac à dos
+        </button>
       </div>
 
       {/* --- CONTENU DES ONGLETS --- */}
       <main className="max-w-6xl mx-auto">
-        {activeTab === 'map' ? (
-          
-          /* Onglet Carte 3D */
-          <Map/>
-
-        ) : (
-          
-          /* Onglet Boutique */
-          <Boutique handleBuyItem={handleBuyItem} />
-
-        )}
+        {activeTab === 'map' && <Map />}
+        {activeTab === 'shop' && <Boutique handleBuyItem={handleBuyItem} />}
+        {activeTab === 'inventory' && <Inventaire />}
       </main>
     </div>
   )
