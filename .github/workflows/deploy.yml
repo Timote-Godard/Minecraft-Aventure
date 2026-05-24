@@ -18,6 +18,8 @@ jobs:
           echo "CRAFTY_TOKEN=${{ secrets.CRAFTY_TOKEN }}" > .env
           echo "CRAFTY_API_URL=${{ secrets.CRAFTY_API_URL }}" >> .env
           echo "MDP_MYSQL=${{ secrets.MDP_MYSQL }}" >> .env
+          echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
+
 
       - name: 🐳 Nettoyage et Lancement de Docker Compose
         run: |
