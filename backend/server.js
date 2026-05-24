@@ -70,6 +70,7 @@ async function initDB() {
 }
 initDB();
 
+
 // --- ROUTE DE CONNEXION ---
 app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
@@ -133,6 +134,79 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
+// --- ROUTE POUR VOIR SON SAC À DOS ---
+app.get('/api/inventory', async (req, res) => {
+    // 1. Vérification du bracelet VIP (Token)
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) return res.status(401).json({ error: "Accès refusé." });
+
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const uuid = decoded.uuid;
+
+        // 2. La requête magique (SQL JOIN) : 
+        // On fusionne l'inventaire du joueur avec le catalogue pour avoir le nom et l'image !
+        const [rows] = await pool.query(`
+            SELECT shop_items.id, shop_items.nom, shop_items.description, shop_items.categorie, shop_items.custom_model_data, player_inventory.is_equipped 
+            FROM player_inventory 
+            JOIN shop_items ON player_inventory.item_id = shop_items.id 
+            WHERE player_inventory.uuid = ?
+        `, [uuid]);
+
+        res.json(rows);
+    } catch (error) {
+        console.error("❌ Erreur inventaire :", error.message);
+        res.status(500).json({ error: "Erreur interne." });
+    }
+});
+
+
+// --- ROUTE POUR ÉQUIPER UN SKIN ---
+app.post('/api/inventory/equip', async (req, res) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) return res.status(401).json({ error: "Accès refusé." });
+
+    const { itemId } = req.body;
+
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const uuid = decoded.uuid;
+
+        // 1. On récupère la catégorie de l'objet qu'il veut équiper (ex: 'skin_sword')
+        const [itemRows] = await pool.query("SELECT categorie FROM shop_items WHERE id = ?", [itemId]);
+        if (itemRows.length === 0) return res.status(404).json({ error: "Objet inconnu." });
+        
+        const categorie = itemRows[0].categorie;
+
+        // 2. On déséquipe TOUS les objets de cette catégorie pour ce joueur
+        // (Pour éviter qu'il ait 2 skins d'épée équipés en même temps)
+        await pool.query(`
+            UPDATE player_inventory 
+            JOIN shop_items ON player_inventory.item_id = shop_items.id 
+            SET player_inventory.is_equipped = FALSE 
+            WHERE player_inventory.uuid = ? AND shop_items.categorie = ?
+        `, [uuid, categorie]);
+
+        // 3. On équipe l'objet choisi
+        await pool.query(`
+            UPDATE player_inventory 
+            SET is_equipped = TRUE 
+            WHERE uuid = ? AND item_id = ?
+        `, [uuid, itemId]);
+
+        res.json({ success: true, message: "Skin équipé avec succès !" });
+
+        // 🚀 C'est ICI qu'on ajoutera plus tard la commande Crafty pour actualiser le jeu en direct !
+
+    } catch (error) {
+        console.error("❌ Erreur équipement :", error.message);
+        res.status(500).json({ error: "Erreur interne." });
+    }
+});
 
 // 1. ROUTE POUR RÉCUPÉRER LE CATALOGUE DE LA BOUTIQUE
 app.get('/api/shop/items', async (req, res) => {
