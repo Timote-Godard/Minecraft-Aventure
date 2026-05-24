@@ -59,10 +59,10 @@ app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
 
     try {
-        // 1. On cherche le joueur dans la table générée par le mod EasyAuth
-        // (On utilise LOWER pour que la casse du pseudo n'ait pas d'importance)
+        // 1. On cherche le joueur via la colonne optimisée 'username_lower'
+        // On récupère la colonne 'data' (qui contient le JSON) ET l'UUID du joueur !
         const [rows] = await pool.query(
-            'SELECT password FROM easyauth WHERE LOWER(username) = LOWER(?)', 
+            'SELECT data, uuid FROM easyauth WHERE username_lower = LOWER(?)', 
             [username]
         );
 
@@ -70,15 +70,24 @@ app.post('/api/login', async (req, res) => {
             return res.status(404).json({ error: "Ce pseudo n'est pas inscrit sur le serveur Minecraft." });
         }
 
-        const hashedPassword = rows[0].password;
+        // 2. Extraction du mot de passe depuis l'objet JSON
+        const userData = rows[0].data;
+        const hashedPassword = userData.password; // C'est ici que le hash était caché !
+        const playerUuid = rows[0].uuid; // C'est parfait, on a son vrai UUID Minecraft
 
-        // 2. On compare le mot de passe tapé avec le hash de la DB
+        if (!hashedPassword) {
+            return res.status(500).json({ error: "Aucun mot de passe enregistré pour ce compte." });
+        }
+
+        // 3. On compare le mot de passe tapé avec le hash de la DB
         const match = await bcrypt.compare(password, hashedPassword);
 
         if (match) {
-            // Optionnel : tu pourrais ici insérer le joueur dans ta table `players` 
-            // s'il n'y est pas encore pour qu'il ait son solde de départ !
-            await pool.query(`INSERT IGNORE INTO players (uuid, pseudo, solde) VALUES (?, ?, 500)`, ['uuid-a-recuperer', username]);
+            // On en profite pour l'inscrire dans TA table avec son vrai UUID s'il est nouveau !
+            await pool.query(
+                `INSERT IGNORE INTO players (uuid, pseudo, solde) VALUES (?, ?, 500)`, 
+                [playerUuid, username]
+            );
             
             res.json({ success: true, message: 'Connecté !' });
         } else {
@@ -89,7 +98,6 @@ app.post('/api/login', async (req, res) => {
         res.status(500).json({ error: 'Erreur interne du serveur.' });
     }
 });
-
 // Acheter une épée
 app.post('/api/shop/buy-sword', async (req, res) => {
     const { uuid } = req.body;
