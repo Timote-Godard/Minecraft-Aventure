@@ -19,10 +19,20 @@ export default function App() {
     fetch('https://api-minecraft.timote.ovh/api/players')
       .then(res => res.json())
       .then(data => {
-        setPlayersList(data)
-        // On ne sélectionne plus par défaut ici, on le fera à la connexion !
+        // On vérifie que 'data' est bien un tableau avant de l'utiliser
+        if (Array.isArray(data)) {
+          setPlayersList(data)
+          // if (data.length > 0) setSelectedPlayerUuid(data[0].uuid) // (Ligne commentée si tu as gardé la connexion)
+        } else {
+          console.error("Erreur reçue du serveur :", data)
+          setPlayersList([]) // On force un tableau vide pour éviter le crash du .find()
+        }
       })
-  }, [activeTab]) // Recharge quand on change d'onglet pour actualiser les soldes
+      .catch(err => {
+        console.error("Impossible de joindre l'API :", err)
+        setPlayersList([])
+      })
+  }, [activeTab])
 
   // --- FONCTION DE CONNEXION ---
   const handleLogin = async (e: React.FormEvent) => {

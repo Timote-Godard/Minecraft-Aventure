@@ -13,7 +13,7 @@ const CRAFTY_API_URL = process.env.CRAFTY_API_URL;
 
 // 1. Connexion à la base de données MySQL (via ton conteneur Docker)
 const pool = mysql.createPool({
-    host: 'mysql-db', // Le nom de ton service Docker. (Mets 'localhost' si tu lances Node hors de Docker pour tester)
+    host: '127.0.0.1', // Le nom de ton service Docker. (Mets 'localhost' si tu lances Node hors de Docker pour tester)
     user: 'timote',
     password: process.env.MDP_MYSQL, // L'idéal sera de le passer dans ton fichier .env !
     database: 'minecraft_db',
