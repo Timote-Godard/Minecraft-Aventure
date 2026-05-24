@@ -113,7 +113,7 @@ app.post('/api/login', async (req, res) => {
 // Acheter une épée
 app.post('/api/shop/buy-sword', async (req, res) => {
     const { uuid } = req.body;
-    const price = 150; // Aligné avec ton interface React !
+    const price = 150; 
 
     try {
         // 1. On cherche le joueur
