@@ -83,13 +83,25 @@ app.post('/api/login', async (req, res) => {
         const match = await bcrypt.compare(password, hashedPassword);
 
         if (match) {
-            // On en profite pour l'inscrire dans TA table avec son vrai UUID s'il est nouveau !
+            // 1. On inscrit le joueur s'il est nouveau
             await pool.query(
                 `INSERT IGNORE INTO players (uuid, pseudo, solde) VALUES (?, ?, 500)`, 
                 [playerUuid, username]
             );
+
+            // 2. On récupère ses informations complètes (dont son solde actuel)
+            const [playerData] = await pool.query(
+                `SELECT pseudo, solde FROM players WHERE uuid = ?`, 
+                [playerUuid]
+            );
             
-            res.json({ success: true, message: 'Connecté !' });
+            // 3. On envoie tout ça à React !
+            res.json({ 
+                success: true, 
+                uuid: playerUuid,
+                pseudo: playerData[0].pseudo,
+                solde: playerData[0].solde
+            });
         } else {
             res.status(401).json({ error: 'Mot de passe incorrect.' });
         }
