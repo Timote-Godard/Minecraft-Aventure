@@ -162,6 +162,34 @@ app.get('/api/inventory', async (req, res) => {
     }
 });
 
+// --- ROUTE POUR DÉSÉQUIPER UN SKIN ---
+app.post('/api/inventory/unequip', async (req, res) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) return res.status(401).json({ error: "Accès refusé." });
+
+    const { itemId } = req.body;
+
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const uuid = decoded.uuid;
+
+        // On remet l'objet dans le fond du sac à dos (is_equipped = FALSE)
+        await pool.query(`
+            UPDATE player_inventory 
+            SET is_equipped = FALSE 
+            WHERE uuid = ? AND item_id = ?
+        `, [uuid, itemId]);
+
+        res.json({ success: true, message: "Skin retiré avec succès !" });
+
+    } catch (error) {
+        console.error("❌ Erreur déséquipement :", error.message);
+        res.status(500).json({ error: "Erreur interne." });
+    }
+});
+
 
 // --- ROUTE POUR ÉQUIPER UN SKIN ---
 app.post('/api/inventory/equip', async (req, res) => {

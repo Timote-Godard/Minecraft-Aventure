@@ -63,6 +63,30 @@ export default function Inventaire() {
       });
   };
 
+  // 4. Fonction pour retirer un objet
+  const handleUnequip = (itemId: number) => {
+    const token = localStorage.getItem('aventure_token');
+    if (!token) return;
+
+    fetch('https://api-minecraft.timote.ovh/api/inventory/unequip', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}` 
+      },
+      body: JSON.stringify({ itemId })
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.error) {
+          alert("❌ " + data.error);
+        } else {
+          // On recharge l'inventaire visuellement
+          fetchInventory(); 
+        }
+      });
+  };
+
   if (loading) {
     return <div className="text-center font-black text-2xl uppercase mt-10">Fouille du sac à dos... 🎒</div>;
   }
@@ -99,10 +123,12 @@ export default function Inventaire() {
             <div className="flex justify-end items-center mt-auto">
               {isEquipped ? (
                 <button 
-                  disabled
-                  className="bg-[#4ade80] text-black font-black uppercase border-4 border-black px-6 py-2 rounded-xl opacity-80 cursor-not-allowed"
+                  onClick={() => handleUnequip(item.id)}
+                  className="group bg-[#4ade80] hover:bg-[#ff6b6b] text-black hover:text-white font-black uppercase border-4 border-black px-6 py-2 rounded-xl shadow-[4px_4px_0px_0px_#000] active:translate-x-1 active:translate-y-1 active:shadow-none transition-all"
                 >
-                  Équipé ✅
+                  {/* Astuce Tailwind : Le texte change au survol ! */}
+                  <span className="group-hover:hidden">Équipé ✅</span>
+                  <span className="hidden group-hover:inline">Retirer ❌</span>
                 </button>
               ) : (
                 <button 
