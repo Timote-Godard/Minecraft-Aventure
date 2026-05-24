@@ -1,7 +1,12 @@
 import { useState, useEffect } from 'react'
 
 export default function App() {
-  // Ce "state" permet à React de savoir quel onglet est actif
+  // --- ÉTATS D'AUTHENTIFICATION ---
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [loginUsername, setLoginUsername] = useState('')
+  const [loginPassword, setLoginPassword] = useState('')
+
+  // --- ÉTATS DU DASHBOARD ---
   const [activeTab, setActiveTab] = useState('map')
   const [playersList, setPlayersList] = useState<any[]>([])
   const [selectedPlayerUuid, setSelectedPlayerUuid] = useState('')
@@ -9,16 +14,45 @@ export default function App() {
   // Trouver l'objet complet du joueur actuellement sélectionné
   const currentPlayer = playersList.find(p => p.uuid === selectedPlayerUuid)
 
-  // Charger la liste des joueurs depuis la BDD SQLite au démarrage
+  // Charger la liste des joueurs depuis la BDD au démarrage
   useEffect(() => {
     fetch('https://api-minecraft.timote.ovh/api/players')
       .then(res => res.json())
       .then(data => {
         setPlayersList(data)
-        if (data.length > 0) setSelectedPlayerUuid(data[0].uuid)
+        // On ne sélectionne plus par défaut ici, on le fera à la connexion !
       })
   }, [activeTab]) // Recharge quand on change d'onglet pour actualiser les soldes
 
+  // --- FONCTION DE CONNEXION ---
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      const res = await fetch('https://api-minecraft.timote.ovh/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: loginUsername, password: loginPassword })
+      });
+      
+      const data = await res.json();
+      
+      if (res.ok) {
+        setIsLoggedIn(true);
+        // On sélectionne automatiquement le pseudo du joueur qui vient de se connecter
+        const loggedUser = playersList.find(p => p.pseudo.toLowerCase() === loginUsername.toLowerCase());
+        if (loggedUser) {
+          setSelectedPlayerUuid(loggedUser.uuid);
+        }
+      } else {
+        alert("❌ Erreur : " + data.error);
+      }
+    } catch (err) {
+      alert("❌ Impossible de joindre le serveur d'authentification.");
+    }
+  };
+
+  // --- FONCTION D'ACHAT ---
   const handleBuySword = () => {
     if (!selectedPlayerUuid) return;
 
@@ -30,7 +64,7 @@ export default function App() {
     .then(res => res.json())
     .then(data => {
       if (data.error) {
-        alert(data.error)
+        alert("❌ " + data.error)
       } else {
         alert(`⚔️ Succès ! Une épée en diamant a été envoyée à ${data.pseudo} !`)
         // Mettre à jour l'affichage du solde localement
@@ -39,6 +73,52 @@ export default function App() {
     })
   }
 
+  // =========================================================================
+  // AFFICHAGE 1 : L'ÉCRAN DE CONNEXION (Si isLoggedIn est false)
+  // =========================================================================
+  if (!isLoggedIn) {
+    return (
+      <div className="min-h-screen bg-[#f4f4f0] flex items-center justify-center p-6 font-sans text-black">
+        <form 
+          onSubmit={handleLogin}
+          className="bg-white p-8 border-4 border-black rounded-2xl shadow-[8px_8px_0px_0px_#000] -rotate-1 max-w-sm w-full flex flex-col gap-6"
+        >
+          <h2 className="text-3xl font-black text-center uppercase rotate-2 mb-2">
+            Se Connecter
+          </h2>
+          
+          <input 
+            type="text" 
+            placeholder="Pseudo Minecraft" 
+            value={loginUsername}
+            onChange={(e) => setLoginUsername(e.target.value)}
+            className="p-3 border-4 border-black rounded-xl text-lg outline-none focus:bg-blue-50 transition-colors shadow-[inset_2px_2px_0px_rgba(0,0,0,0.1)] font-bold"
+            required 
+          />
+          
+          <input 
+            type="password" 
+            placeholder="Mot de passe" 
+            value={loginPassword}
+            onChange={(e) => setLoginPassword(e.target.value)}
+            className="p-3 border-4 border-black rounded-xl text-lg outline-none focus:bg-blue-50 transition-colors shadow-[inset_2px_2px_0px_rgba(0,0,0,0.1)] font-bold"
+            required 
+          />
+          
+          <button 
+            type="submit"
+            className="bg-[#ff6b6b] text-white p-4 font-black uppercase text-xl border-4 border-black rounded-xl shadow-[4px_4px_0px_0px_#000] active:translate-x-1 active:translate-y-1 active:shadow-none transition-all mt-2"
+          >
+            JOUER ⚔️
+          </button>
+        </form>
+      </div>
+    );
+  }
+
+  // =========================================================================
+  // AFFICHAGE 2 : LE TABLEAU DE BORD (Si isLoggedIn est true)
+  // =========================================================================
   return (
     <div className="min-h-screen bg-[#f4f4f0] p-6 md:p-10 font-sans text-black">
       

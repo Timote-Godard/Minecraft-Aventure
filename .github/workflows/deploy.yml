@@ -17,6 +17,7 @@ jobs:
           cd backend
           echo "CRAFTY_TOKEN=${{ secrets.CRAFTY_TOKEN }}" > .env
           echo "CRAFTY_API_URL=${{ secrets.CRAFTY_API_URL }}" >> .env
+          echo "MDP_MYSQL=${{ secrets.MDP_MYSQL }}" >> .env
 
       - name: 🐳 Nettoyage et Lancement de Docker Compose
         run: |

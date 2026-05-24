@@ -1,93 +1,111 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const sqlite3 = require('sqlite3').verbose();
+const mysql = require('mysql2/promise'); // On utilise la version 'promise' pour un code plus moderne
 
 const app = express();
 app.use(cors({ origin: 'https://minecraft.timote.ovh' }));
 app.use(express.json());
 
+// Tes identifiants Crafty
 const CRAFTY_TOKEN = process.env.CRAFTY_TOKEN;
 const CRAFTY_API_URL = process.env.CRAFTY_API_URL;
 
-// 1. Connexion ou création de la base de données SQLite
-// (Elle va se créer toute seule dans le même dossier la première fois !)
-const db = new sqlite3.Database('./database.db', (err) => {
-    if (err) console.error("❌ Erreur BDD:", err.message);
-    else console.log("✅ Connecté à la base de données SQLite avec succès.");
+// 1. Connexion à la base de données MySQL (via ton conteneur Docker)
+const pool = mysql.createPool({
+    host: 'mysql-db', // Le nom de ton service Docker. (Mets 'localhost' si tu lances Node hors de Docker pour tester)
+    user: 'timote',
+    password: process.env.MDP_MYSQL, // L'idéal sera de le passer dans ton fichier .env !
+    database: 'minecraft_db',
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0
 });
 
-// 2. Création de la table des joueurs si elle n'existe pas
-db.serialize(() => {
-    // 1. On attend que la table soit créée
-    db.run(`CREATE TABLE IF NOT EXISTS players (
-        uuid TEXT PRIMARY KEY,
-        pseudo TEXT,
-        solde INTEGER DEFAULT 500
-    )`);
-
-    // 2. SEULEMENT ENSUITE, on insère le joueur
-    db.run(`INSERT OR IGNORE INTO players (uuid, pseudo, solde) VALUES ('12-abcd', 'TimTeam', 500)`);
-});
+// 2. Initialisation de la table (équivalent du db.serialize de SQLite)
+async function initDB() {
+    try {
+        // Création de la table avec la syntaxe MySQL (VARCHAR au lieu de TEXT pour les clés)
+        await pool.query(`CREATE TABLE IF NOT EXISTS players (
+            uuid VARCHAR(255) PRIMARY KEY,
+            pseudo VARCHAR(255),
+            solde INT DEFAULT 500
+        )`);
+        
+        // Insertion de test (IGNORE évite les erreurs si le joueur existe déjà)
+        await pool.query(`INSERT IGNORE INTO players (uuid, pseudo, solde) VALUES ('12-abcd', 'TimTeam', 500)`);
+        console.log("✅ Connecté à MySQL et table prête.");
+    } catch (err) {
+        console.error("❌ Erreur d'initialisation BDD:", err.message);
+    }
+}
+initDB();
 
 // --- ROUTES API ---
-app.get('/api/players', (req, res) => {
-    db.all("SELECT * FROM players", [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
+
+// Récupérer tous les joueurs
+app.get('/api/players', async (req, res) => {
+    try {
+        const [rows] = await pool.query("SELECT * FROM players");
         res.json(rows);
-    });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
-app.post('/api/shop/buy-sword', (req, res) => {
+// Acheter une épée
+app.post('/api/shop/buy-sword', async (req, res) => {
     const { uuid } = req.body;
-    const price = 10; 
+    const price = 150; // Aligné avec ton interface React !
 
-    db.get("SELECT * FROM players WHERE uuid = ?", [uuid], async (err, player) => {
-        if (err || !player) return res.status(404).json({ error: "Joueur non trouvé." });
+    try {
+        // 1. On cherche le joueur
+        const [rows] = await pool.query("SELECT * FROM players WHERE uuid = ?", [uuid]);
+        
+        if (rows.length === 0) return res.status(404).json({ error: "Joueur non trouvé." });
+        
+        const player = rows[0];
+        
         if (player.solde < price) return res.status(400).json({ error: "Solde insuffisant !" });
 
         const nouveauSolde = player.solde - price;
         
-        db.run("UPDATE players SET solde = ? WHERE uuid = ?", [nouveauSolde, uuid], async (err) => {
-            if (err) return res.status(500).json({ error: "Erreur lors du débit." });
+        // 2. On débite le joueur
+        await pool.query("UPDATE players SET solde = ? WHERE uuid = ?", [nouveauSolde, uuid]);
 
-            // --- 🚀 LA MAGIE POUR MINECRAFT COMMENCE ICI ---
-            try {
-                // ⚠️ REMPLACE ICI par l'IP de ton vieux PC (ex: 192.168.1.30) ou ton lien Cloudflare
-                const CRAFTY_API_URL = "https://192.168.1.107:8443/api/v2/servers/084f6fb1-108b-4d2a-b39f-d920fe35b725/stdin";
-                
-                // ⚠️ REMPLACE ICI par le vrai token que tu as généré tout à l'heure
-                const CRAFTY_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJpYXQiOjE3Nzk1NDkyODEsInRva2VuX2lkIjoxfQ.tSNrskl3AGuuSIPUnHmxFoGS5pwxDgVWfrMSwa8yHiU";
-                
-                const command = `give ${player.pseudo} diamond_sword 1`;
+        // --- 🚀 LA MAGIE POUR MINECRAFT COMMENCE ICI ---
+        const command = `give ${player.pseudo} diamond_sword 1`;
 
-                // Astuce de pro : C'est l'équivalent du "-k" dans ton curl. 
-                // Ça dit à Node.js de ne pas bloquer la requête à cause du certificat SSL auto-signé de Crafty.
-                process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; 
+        // Astuce pour contourner le SSL auto-signé de Crafty
+        process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; 
 
-                const response = await fetch(CRAFTY_API_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${CRAFTY_TOKEN}`,
-                        'Content-Type': 'text/plain'
-                    },
-                    body: command
-                });
-
-                if (!response.ok) throw new Error("Crafty a refusé la connexion");
-
-                console.log(`⚔️ ACHAT RÉUSSI : Épée envoyée à ${player.pseudo} en jeu !`);
-                res.json({ success: true, pseudo: player.pseudo, newSolde: nouveauSolde });
-
-            } catch (craftyError) {
-                console.error("❌ Erreur de communication Crafty :", craftyError);
-                
-                // Sécurité absolue : Si le serveur Minecraft est éteint, on recrédite le joueur !
-                db.run("UPDATE players SET solde = ? WHERE uuid = ?", [player.solde, uuid]);
-                res.status(500).json({ error: "Le serveur Minecraft est injoignable. Achat annulé et remboursé." });
-            }
+        const response = await fetch(CRAFTY_API_URL, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${CRAFTY_TOKEN}`,
+                'Content-Type': 'text/plain'
+            },
+            body: command
         });
-    });
+
+        if (!response.ok) {
+            throw new Error("Crafty a refusé la connexion");
+        }
+
+        console.log(`⚔️ ACHAT RÉUSSI : Épée envoyée à ${player.pseudo} en jeu !`);
+        res.json({ success: true, pseudo: player.pseudo, newSolde: nouveauSolde });
+
+    } catch (error) {
+        console.error("❌ Erreur lors de l'achat :", error.message);
+        
+        // Sécurité absolue : On recrédite le joueur si la connexion Crafty a échoué
+        if (error.message === "Crafty a refusé la connexion" || error.cause) {
+            await pool.query("UPDATE players SET solde = solde + ? WHERE uuid = ?", [price, uuid]);
+            return res.status(500).json({ error: "Le serveur Minecraft est injoignable. Achat annulé et remboursé." });
+        }
+        
+        res.status(500).json({ error: "Erreur interne du serveur." });
+    }
 });
 
 app.listen(5000, () => {
