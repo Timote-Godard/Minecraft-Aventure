@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const mysql = require('mysql2/promise'); // On utilise la version 'promise' pour un code plus moderne
+const bcrypt = require('bcrypt');
 
 const app = express();
 app.use(cors({ origin: 'https://minecraft.timote.ovh' }));
@@ -50,6 +51,42 @@ app.get('/api/players', async (req, res) => {
         res.json(rows);
     } catch (err) {
         res.status(500).json({ error: err.message });
+    }
+});
+
+// --- ROUTE DE CONNEXION ---
+app.post('/api/login', async (req, res) => {
+    const { username, password } = req.body;
+
+    try {
+        // 1. On cherche le joueur dans la table générée par le mod EasyAuth
+        // (On utilise LOWER pour que la casse du pseudo n'ait pas d'importance)
+        const [rows] = await pool.query(
+            'SELECT password FROM easyauth WHERE LOWER(username) = LOWER(?)', 
+            [username]
+        );
+
+        if (rows.length === 0) {
+            return res.status(404).json({ error: "Ce pseudo n'est pas inscrit sur le serveur Minecraft." });
+        }
+
+        const hashedPassword = rows[0].password;
+
+        // 2. On compare le mot de passe tapé avec le hash de la DB
+        const match = await bcrypt.compare(password, hashedPassword);
+
+        if (match) {
+            // Optionnel : tu pourrais ici insérer le joueur dans ta table `players` 
+            // s'il n'y est pas encore pour qu'il ait son solde de départ !
+            await pool.query(`INSERT IGNORE INTO players (uuid, pseudo, solde) VALUES (?, ?, 500)`, ['uuid-a-recuperer', username]);
+            
+            res.json({ success: true, message: 'Connecté !' });
+        } else {
+            res.status(401).json({ error: 'Mot de passe incorrect.' });
+        }
+    } catch (error) {
+        console.error("❌ Erreur de connexion :", error.message);
+        res.status(500).json({ error: 'Erreur interne du serveur.' });
     }
 });
 
