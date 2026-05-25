@@ -39,7 +39,7 @@ async function sendCraftyCommand(pseudo, targetItem, modelData) {
                 'Authorization': `Bearer ${CRAFTY_TOKEN}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ command: command })
+            body: command
         });
         
         if (!response.ok) {
