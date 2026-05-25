@@ -70,6 +70,26 @@ async function initDB() {
 }
 initDB();
 
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
+// Fonction utilitaire pour envoyer la commande silencieuse à Crafty
+async function sendCraftyCommand(pseudo, modelData) {
+    try {
+        const command = `skin-update ${pseudo} ${modelData}`;
+        await fetch(process.env.CRAFTY_API_URL, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${process.env.CRAFTY_TOKEN}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ command: command })
+        });
+        console.log(`📡 Magie opérée : Commande envoyée à Crafty -> ${command}`);
+    } catch (err) {
+        console.error("❌ Erreur de communication avec Crafty :", err.message);
+    }
+}
+
 
 // --- ROUTE DE CONNEXION ---
 app.post('/api/login', async (req, res) => {
@@ -199,13 +219,14 @@ app.post('/api/inventory/equip', async (req, res) => {
     if (!token) return res.status(401).json({ error: "Accès refusé." });
 
     const { itemId } = req.body;
+    
 
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
         const uuid = decoded.uuid;
 
         // 1. On récupère la catégorie de l'objet qu'il veut équiper (ex: 'skin_sword')
-        const [itemRows] = await pool.query("SELECT categorie FROM shop_items WHERE id = ?", [itemId]);
+        const [itemRows] = await pool.query("SELECT custom_model_data, target_item FROM shop_items WHERE id = ?", [itemId]);
         if (itemRows.length === 0) return res.status(404).json({ error: "Objet inconnu." });
         
         const categorie = itemRows[0].categorie;
@@ -228,7 +249,8 @@ app.post('/api/inventory/equip', async (req, res) => {
 
         res.json({ success: true, message: "Skin équipé avec succès !" });
 
-        // 🚀 C'est ICI qu'on ajoutera plus tard la commande Crafty pour actualiser le jeu en direct !
+        const item = itemRows[0];
+        await sendCraftyCommand(decoded.pseudo, item.target_item, item.custom_model_data);
 
     } catch (error) {
         console.error("❌ Erreur équipement :", error.message);
