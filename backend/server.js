@@ -12,7 +12,7 @@ app.use(express.json());
 // Clé de chiffrage
 const JWT_SECRET = process.env.JWT_SECRET
 
-// Tes identifiants Crafty
+// Tes identifiants Crafty 
 const CRAFTY_TOKEN = process.env.CRAFTY_TOKEN;
 const CRAFTY_API_URL = process.env.CRAFTY_API_URL;
 
