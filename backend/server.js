@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ override: true });
 const express = require('express');
 const cors = require('cors');
 const mysql = require('mysql2/promise'); // On utilise la version 'promise' pour un code plus moderne
