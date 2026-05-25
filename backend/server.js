@@ -69,18 +69,9 @@ async function initDB() {
             nom VARCHAR(255),
             description TEXT,
             prix INT,
-            categorie VARCHAR(50), 
             custom_model_data INT,
             target_item VARCHAR(100) DEFAULT 'minecraft:wooden_sword'
         )`);
-
-        // ✨ SÉCURITÉ MIGRATION : Si la table existait déjà hier, on lui ajoute la colonne target_item
-        try {
-            await pool.query(`ALTER TABLE shop_items ADD COLUMN target_item VARCHAR(100) DEFAULT 'minecraft:wooden_sword'`);
-            console.log("🔹 Colonne 'target_item' synchronisée avec succès !");
-        } catch (e) {
-            // La colonne existe déjà, on ignore l'erreur sans bloquer le serveur
-        }
 
         // Sac à dos des joueurs
         await pool.query(`CREATE TABLE IF NOT EXISTS player_inventory (
@@ -88,7 +79,8 @@ async function initDB() {
             item_id INT,
             is_equipped BOOLEAN DEFAULT FALSE,
             PRIMARY KEY(uuid, item_id),
-            FOREIGN KEY(item_id) REFERENCES shop_items(id)
+            FOREIGN KEY(item_id) REFERENCES shop_items(id) ON DELETE CASCADE,
+            FOREIGN KEY(uuid) REFERENCES players(uuid) ON DELETE CASCADE
         )`);
         
         // Insertion de test
@@ -202,21 +194,21 @@ app.post('/api/inventory/equip', async (req, res) => {
         const decoded = jwt.verify(token, JWT_SECRET);
         const uuid = decoded.uuid;
 
-        // On récupère les infos du skin (modèle et cible Minecraft)
-        const [itemRows] = await pool.query("SELECT categorie, custom_model_data, target_item FROM shop_items WHERE id = ?", [itemId]);
+        // 1. On récupère les infos du skin (modèle et cible Minecraft, adieu la catégorie !)
+        const [itemRows] = await pool.query("SELECT custom_model_data, target_item FROM shop_items WHERE id = ?", [itemId]);
         if (itemRows.length === 0) return res.status(404).json({ error: "Objet inconnu." });
         
-        const { categorie, custom_model_data, target_item } = itemRows[0];
+        const { custom_model_data, target_item } = itemRows[0];
 
-        // On déséquipe les autres skins de la même catégorie
+        // 2. On déséquipe les autres skins du joueur qui ciblent EXACTEMENT LE MÊME OBJET
         await pool.query(`
             UPDATE player_inventory 
             JOIN shop_items ON player_inventory.item_id = shop_items.id 
             SET player_inventory.is_equipped = FALSE 
-            WHERE player_inventory.uuid = ? AND shop_items.categorie = ?
-        `, [uuid, categorie]);
+            WHERE player_inventory.uuid = ? AND shop_items.target_item = ?
+        `, [uuid, target_item]);
 
-        // On équipe le nouveau
+        // 3. On équipe le nouveau
         await pool.query(`UPDATE player_inventory SET is_equipped = TRUE WHERE uuid = ? AND item_id = ?`, [uuid, itemId]);
 
         // 🚀 SYNC EN JEU : On envoie l'ordre en temps réel à Crafty !
@@ -238,6 +230,7 @@ app.get('/api/shop/items', async (req, res) => {
     }
 });
 
+// --- ROUTE POUR ACHETER UN OBJET ---
 app.post('/api/shop/buy/item', async (req, res) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -253,19 +246,21 @@ app.post('/api/shop/buy/item', async (req, res) => {
         if (itemRows.length === 0) return res.status(404).json({ error: "Article introuvable." });
         const item = itemRows[0];
 
-        const [playerRows] = await pool.query("SELECT * FROM players WHERE uuid = ?", [uuid]);
+        const [playerRows] = await pool.query("SELECT pseudo, solde FROM players WHERE uuid = ?", [uuid]);
         if (playerRows.length === 0) return res.status(404).json({ error: "Joueur introuvable." });
         const player = playerRows[0];
 
         if (player.solde < item.prix) return res.status(400).json({ error: "Solde insuffisant !" });
 
         const nouveauSolde = player.solde - item.prix;
+        
+        // 1. On débite le joueur
         await pool.query("UPDATE players SET solde = ? WHERE uuid = ?", [nouveauSolde, uuid]);
 
-        if (item.categorie === 'skin_sword') {
-            await pool.query("INSERT IGNORE INTO player_inventory (uuid, item_id, is_equipped) VALUES (?, ?, FALSE)", [uuid, item.id]);
-            console.log(`🛒 ${player.pseudo} a débloqué le skin : ${item.nom}`);
-        } 
+        await pool.query("INSERT IGNORE INTO player_inventory (uuid, item_id, is_equipped) VALUES (?, ?, FALSE)", [uuid, item.id]);
+        
+        // Petit log sympa pour suivre les ventes dans la console
+        console.log(`🛒 ${player.pseudo} a débloqué : ${item.nom} (Cible: ${item.target_item})`);
 
         res.json({ success: true, itemName: item.nom, newSolde: nouveauSolde });
     } catch (error) {
