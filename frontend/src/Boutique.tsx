@@ -44,16 +44,7 @@ export default function Boutique({ handleBuyItem }: BoutiqueProps) {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-      <img 
-        src="http://minecraft.timote.ovh/images/default.png" 
-        alt="Test Absolu" 
-        style={{ border: '5px solid red', width: '150px', height: '150px' }} 
-      />
-      <img 
-  src="/images/default.png" 
-  alt="Test Relatif" 
-  style={{ border: '5px solid blue', width: '150px', height: '150px' }} 
-/>
+      
       {items.map((item) => (
         <div 
           key={item.id} 
