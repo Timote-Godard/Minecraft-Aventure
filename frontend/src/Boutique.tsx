@@ -56,7 +56,11 @@ export default function Boutique({ handleBuyItem }: BoutiqueProps) {
                 src={getImagePath(item.target_item, item.custom_model_data)} 
                 alt={item.nom} 
                 className="max-h-full max-w-full object-contain"
-                onError={(e) => { e.currentTarget.src = '/images/default.png' }} // Si l'image n'existe pas, on met une image par défaut
+                onError={(e) => { 
+                  // On désactive l'erreur pour empêcher la boucle infinie de clignotement
+                  e.currentTarget.onerror = null; 
+                  e.currentTarget.src = '/images/default.png'; 
+                }} 
               />
             </div>
 
