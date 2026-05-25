@@ -1,53 +1,88 @@
-require('dotenv').config({ override: true });
+require('dotenv').config({ override: true }); // On force l'écrasement du cache d'environnement
 const express = require('express');
 const cors = require('cors');
-const mysql = require('mysql2/promise'); // On utilise la version 'promise' pour un code plus moderne
+const mysql = require('mysql2/promise');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+
+// ✨ Sécurité : Permet à Node de parler à Crafty (HTTPS local / Certificat auto-signé)
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 const app = express();
 app.use(cors({ origin: 'https://minecraft.timote.ovh' }));
 app.use(express.json());
 
-// Clé de chiffrage
-const JWT_SECRET = process.env.JWT_SECRET
-
-// Tes identifiants Crafty 
+const JWT_SECRET = process.env.JWT_SECRET;
 const CRAFTY_TOKEN = process.env.CRAFTY_TOKEN;
 const CRAFTY_API_URL = process.env.CRAFTY_API_URL;
 
-// 1. Connexion à la base de données MySQL (via ton conteneur Docker)
+// 🔌 Connexion à la base de données MySQL
 const pool = mysql.createPool({
-    host: '127.0.0.1', // Le nom de ton service Docker. (Mets 'localhost' si tu lances Node hors de Docker pour tester)
+    host: '127.0.0.1', 
     user: 'timote',
-    password: process.env.MDP_MYSQL, // L'idéal sera de le passer dans ton fichier .env !
+    password: process.env.MDP_MYSQL, 
     database: 'minecraft_db',
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
 });
 
-// 2. Initialisation des tables
+// 📡 FONCTION MAGIQUE : Envoie la commande en direct à l'API de Crafty
+async function sendCraftyCommand(pseudo, targetItem, modelData) {
+    try {
+        // Ex: skin-update TimTeam minecraft:wooden_sword 1
+        const command = `skin-update ${pseudo} ${targetItem} ${modelData}`;
+        
+        const response = await fetch(CRAFTY_API_URL, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${CRAFTY_TOKEN}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ command: command })
+        });
+        
+        if (!response.ok) {
+            const errText = await response.text();
+            console.error(`❌ Crafty a refusé la commande (${response.status}):`, errText);
+        } else {
+            console.log(`📡 Commande exécutée sur Minecraft via Crafty -> ${command}`);
+        }
+    } catch (err) {
+        console.error("❌ Erreur de communication avec Crafty :", err.message);
+    }
+}
+
+// 🗄️ Initialisation des tables
 async function initDB() {
     try {
-        // Table des joueurs (celle que tu avais déjà)
+        // Table des joueurs
         await pool.query(`CREATE TABLE IF NOT EXISTS players (
             uuid VARCHAR(255) PRIMARY KEY,
             pseudo VARCHAR(255),
             solde INT DEFAULT 500
         )`);
         
-        // NOUVEAU : Le catalogue de la boutique
+        // Catalogue de la boutique (avec target_item inclus pour les nouvelles installations)
         await pool.query(`CREATE TABLE IF NOT EXISTS shop_items (
             id INT AUTO_INCREMENT PRIMARY KEY,
             nom VARCHAR(255),
             description TEXT,
             prix INT,
             categorie VARCHAR(50), 
-            custom_model_data INT
+            custom_model_data INT,
+            target_item VARCHAR(100) DEFAULT 'minecraft:wooden_sword'
         )`);
 
-        // NOUVEAU : Le sac à dos des joueurs (qui possède quoi)
+        // ✨ SÉCURITÉ MIGRATION : Si la table existait déjà hier, on lui ajoute la colonne target_item
+        try {
+            await pool.query(`ALTER TABLE shop_items ADD COLUMN target_item VARCHAR(100) DEFAULT 'minecraft:wooden_sword'`);
+            console.log("🔹 Colonne 'target_item' synchronisée avec succès !");
+        } catch (e) {
+            // La colonne existe déjà, on ignore l'erreur sans bloquer le serveur
+        }
+
+        // Sac à dos des joueurs
         await pool.query(`CREATE TABLE IF NOT EXISTS player_inventory (
             uuid VARCHAR(255),
             item_id INT,
@@ -56,12 +91,13 @@ async function initDB() {
             FOREIGN KEY(item_id) REFERENCES shop_items(id)
         )`);
         
-        // Insertion de test pour les joueurs
+        // Insertion de test
         await pool.query(`INSERT IGNORE INTO players (uuid, pseudo, solde) VALUES ('12-abcd', 'TimTeam', 500)`);
         
-        // Insertion de ton premier skin dans le catalogue !
-        await pool.query(`INSERT IGNORE INTO shop_items (id, nom, description, prix, categorie, custom_model_data) 
-            VALUES (1, 'Épée de Feu', 'Une lame incandescente forgée dans le Nether.', 150, 'skin_sword', 1)`);
+        // Mise à jour de ton premier skin pour qu'il cible explicitement l'épée en bois !
+        await pool.query(`INSERT INTO shop_items (id, nom, description, prix, categorie, custom_model_data, target_item) 
+            VALUES (1, 'Épée de Feu', 'Une lame incandescente forgée dans le Nether.', 150, 'skin_sword', 1, 'minecraft:wooden_sword')
+            ON DUPLICATE KEY UPDATE target_item = 'minecraft:wooden_sword', custom_model_data = 1`);
             
         console.log("✅ Connecté à MySQL et toutes les tables sont prêtes !");
     } catch (err) {
@@ -70,111 +106,55 @@ async function initDB() {
 }
 initDB();
 
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-
-// Fonction utilitaire pour envoyer la commande silencieuse à Crafty
-async function sendCraftyCommand(pseudo, modelData) {
-    try {
-        const command = `skin-update ${pseudo} ${modelData}`;
-        await fetch(process.env.CRAFTY_API_URL, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${process.env.CRAFTY_TOKEN}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ command: command })
-        });
-        console.log(`📡 Magie opérée : Commande envoyée à Crafty -> ${command}`);
-    } catch (err) {
-        console.error("❌ Erreur de communication avec Crafty :", err.message);
-    }
-}
-
 
 // --- ROUTE DE CONNEXION ---
 app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
-
     try {
-        // 1. On cherche le joueur via la colonne optimisée 'username_lower'
-        // On récupère la colonne 'data' (qui contient le JSON) ET l'UUID du joueur !
-        const [rows] = await pool.query(
-            'SELECT data, uuid FROM easyauth WHERE username_lower = LOWER(?)', 
-            [username]
-        );
+        const [rows] = await pool.query('SELECT data, uuid FROM easyauth WHERE username_lower = LOWER(?)', [username]);
+        if (rows.length === 0) return res.status(404).json({ error: "Ce pseudo n'est pas inscrit." });
 
-        if (rows.length === 0) {
-            return res.status(404).json({ error: "Ce pseudo n'est pas inscrit sur le serveur Minecraft." });
-        }
-
-        // 2. Extraction du mot de passe depuis l'objet JSON
         const userData = rows[0].data;
-        const hashedPassword = userData.password; // C'est ici que le hash était caché !
-        const playerUuid = rows[0].uuid; // C'est parfait, on a son vrai UUID Minecraft
+        const hashedPassword = userData.password; 
+        const playerUuid = rows[0].uuid; 
 
-        if (!hashedPassword) {
-            return res.status(500).json({ error: "Aucun mot de passe enregistré pour ce compte." });
-        }
-
-        // 3. On compare le mot de passe tapé avec le hash de la DB
+        if (!hashedPassword) return res.status(500).json({ error: "Aucun mot de passe enregistré." });
         const match = await bcrypt.compare(password, hashedPassword);
 
         if (match) {
-            // 1. On inscrit le joueur s'il est nouveau
-            await pool.query(
-                `INSERT IGNORE INTO players (uuid, pseudo, solde) VALUES (?, ?, 500)`, 
-                [playerUuid, username]
-            );
-
-            // 2. On récupère ses informations complètes (dont son solde actuel)
-            const [playerData] = await pool.query(
-                `SELECT pseudo, solde FROM players WHERE uuid = ?`, 
-                [playerUuid]
-            );
+            await pool.query(`INSERT IGNORE INTO players (uuid, pseudo, solde) VALUES (?, ?, 500)`, [playerUuid, username]);
+            const [playerData] = await pool.query(`SELECT pseudo, solde FROM players WHERE uuid = ?`, [playerUuid]);
 
             const token = jwt.sign(
                 { uuid: playerUuid, pseudo: playerData[0].pseudo },
                 JWT_SECRET,
-                { expiresIn: '6h' } // Le token s'autodétruit après 6 heures
+                { expiresIn: '6h' }
             );
             
-            // 3. On envoie tout ça à React !
-            res.json({ 
-                success: true,
-                token: token,
-                pseudo: playerData[0].pseudo,
-                solde: playerData[0].solde
-            });
+            res.json({ success: true, token: token, pseudo: playerData[0].pseudo, solde: playerData[0].solde });
         } else {
             res.status(401).json({ error: 'Mot de passe incorrect.' });
         }
     } catch (error) {
         console.error("❌ Erreur de connexion :", error.message);
-        res.status(500).json({ error: 'Erreur interne du serveur.' });
+        res.status(500).json({ error: 'Erreur interne.' });
     }
 });
 
 // --- ROUTE POUR VOIR SON SAC À DOS ---
 app.get('/api/inventory', async (req, res) => {
-    // 1. Vérification du bracelet VIP (Token)
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
-
     if (!token) return res.status(401).json({ error: "Accès refusé." });
 
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
-        const uuid = decoded.uuid;
-
-        // 2. La requête magique (SQL JOIN) : 
-        // On fusionne l'inventaire du joueur avec le catalogue pour avoir le nom et l'image !
         const [rows] = await pool.query(`
-            SELECT shop_items.id, shop_items.nom, shop_items.description, shop_items.categorie, shop_items.custom_model_data, player_inventory.is_equipped 
+            SELECT shop_items.id, shop_items.nom, shop_items.description, shop_items.categorie, shop_items.custom_model_data, shop_items.target_item, player_inventory.is_equipped 
             FROM player_inventory 
             JOIN shop_items ON player_inventory.item_id = shop_items.id 
             WHERE player_inventory.uuid = ?
-        `, [uuid]);
-
+        `, [decoded.uuid]);
         res.json(rows);
     } catch (error) {
         console.error("❌ Erreur inventaire :", error.message);
@@ -182,11 +162,10 @@ app.get('/api/inventory', async (req, res) => {
     }
 });
 
-// --- ROUTE POUR DÉSÉQUIPER UN SKIN ---
+// --- ROUTE POUR DÉSÉQUIPER UN SKIN (Mise à jour directe sur Minecraft) ---
 app.post('/api/inventory/unequip', async (req, res) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
-
     if (!token) return res.status(401).json({ error: "Accès refusé." });
 
     const { itemId } = req.body;
@@ -195,44 +174,41 @@ app.post('/api/inventory/unequip', async (req, res) => {
         const decoded = jwt.verify(token, JWT_SECRET);
         const uuid = decoded.uuid;
 
-        // On remet l'objet dans le fond du sac à dos (is_equipped = FALSE)
-        await pool.query(`
-            UPDATE player_inventory 
-            SET is_equipped = FALSE 
-            WHERE uuid = ? AND item_id = ?
-        `, [uuid, itemId]);
+        // On récupère la cible pour savoir ce qu'on déséquipe
+        const [itemRows] = await pool.query("SELECT target_item FROM shop_items WHERE id = ?", [itemId]);
+        if (itemRows.length === 0) return res.status(404).json({ error: "Objet inconnu." });
+
+        await pool.query(`UPDATE player_inventory SET is_equipped = FALSE WHERE uuid = ? AND item_id = ?`, [uuid, itemId]);
+
+        // 🚀 SYNC EN JEU : On envoie 0 à Crafty pour retirer l'illusion sur cet item précis
+        await sendCraftyCommand(decoded.pseudo, itemRows[0].target_item, 0);
 
         res.json({ success: true, message: "Skin retiré avec succès !" });
-
     } catch (error) {
         console.error("❌ Erreur déséquipement :", error.message);
         res.status(500).json({ error: "Erreur interne." });
     }
 });
 
-
-// --- ROUTE POUR ÉQUIPER UN SKIN ---
+// --- ROUTE POUR ÉQUIPER UN SKIN (Mise à jour directe sur Minecraft) ---
 app.post('/api/inventory/equip', async (req, res) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
-
     if (!token) return res.status(401).json({ error: "Accès refusé." });
 
     const { itemId } = req.body;
-    
 
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
         const uuid = decoded.uuid;
 
-        // 1. On récupère la catégorie de l'objet qu'il veut équiper (ex: 'skin_sword')
-        const [itemRows] = await pool.query("SELECT custom_model_data, target_item FROM shop_items WHERE id = ?", [itemId]);
+        // On récupère les infos du skin (modèle et cible Minecraft)
+        const [itemRows] = await pool.query("SELECT categorie, custom_model_data, target_item FROM shop_items WHERE id = ?", [itemId]);
         if (itemRows.length === 0) return res.status(404).json({ error: "Objet inconnu." });
         
-        const categorie = itemRows[0].categorie;
+        const { categorie, custom_model_data, target_item } = itemRows[0];
 
-        // 2. On déséquipe TOUS les objets de cette catégorie pour ce joueur
-        // (Pour éviter qu'il ait 2 skins d'épée équipés en même temps)
+        // On déséquipe les autres skins de la même catégorie
         await pool.query(`
             UPDATE player_inventory 
             JOIN shop_items ON player_inventory.item_id = shop_items.id 
@@ -240,25 +216,19 @@ app.post('/api/inventory/equip', async (req, res) => {
             WHERE player_inventory.uuid = ? AND shop_items.categorie = ?
         `, [uuid, categorie]);
 
-        // 3. On équipe l'objet choisi
-        await pool.query(`
-            UPDATE player_inventory 
-            SET is_equipped = TRUE 
-            WHERE uuid = ? AND item_id = ?
-        `, [uuid, itemId]);
+        // On équipe le nouveau
+        await pool.query(`UPDATE player_inventory SET is_equipped = TRUE WHERE uuid = ? AND item_id = ?`, [uuid, itemId]);
+
+        // 🚀 SYNC EN JEU : On envoie l'ordre en temps réel à Crafty !
+        await sendCraftyCommand(decoded.pseudo, target_item, custom_model_data);
 
         res.json({ success: true, message: "Skin équipé avec succès !" });
-
-        const item = itemRows[0];
-        await sendCraftyCommand(decoded.pseudo, item.target_item, item.custom_model_data);
-
     } catch (error) {
         console.error("❌ Erreur équipement :", error.message);
         res.status(500).json({ error: "Erreur interne." });
     }
 });
 
-// 1. ROUTE POUR RÉCUPÉRER LE CATALOGUE DE LA BOUTIQUE
 app.get('/api/shop/items', async (req, res) => {
     try {
         const [rows] = await pool.query("SELECT * FROM shop_items");
@@ -268,64 +238,39 @@ app.get('/api/shop/items', async (req, res) => {
     }
 });
 
-// 2. ROUTE D'ACHAT GÉNÉRIQUE (SÉCURISÉE PAR JWT)
 app.post('/api/shop/buy/item', async (req, res) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
+    if (!token) return res.status(401).json({ error: "Accès refusé." });
 
-    if (!token) {
-        return res.status(401).json({ error: "Accès refusé. Connecte-toi." });
-    }
-
-    const { itemId } = req.body; // React nous envoie juste l'ID de ce que le joueur veut acheter
+    const { itemId } = req.body;
 
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
         const uuid = decoded.uuid;
 
-        // A. On cherche l'item dans le catalogue pour connaître son prix et son nom
         const [itemRows] = await pool.query("SELECT * FROM shop_items WHERE id = ?", [itemId]);
-        if (itemRows.length === 0) {
-            return res.status(404).json({ error: "Article introuvable dans la boutique." });
-        }
+        if (itemRows.length === 0) return res.status(404).json({ error: "Article introuvable." });
         const item = itemRows[0];
 
-        // B. On récupère les informations du joueur (son solde)
         const [playerRows] = await pool.query("SELECT * FROM players WHERE uuid = ?", [uuid]);
         if (playerRows.length === 0) return res.status(404).json({ error: "Joueur introuvable." });
         const player = playerRows[0];
 
-        // C. Vérification de l'argent
-        if (player.solde < item.prix) {
-            return res.status(400).json({ error: "Solde insuffisant pour acheter cet article !" });
-        }
+        if (player.solde < item.prix) return res.status(400).json({ error: "Solde insuffisant !" });
 
-        // D. On débite le joueur
         const nouveauSolde = player.solde - item.prix;
         await pool.query("UPDATE players SET solde = ? WHERE uuid = ?", [nouveauSolde, uuid]);
 
-        // E. APPLICATION DE L'ACHAT SELON LA CATÉGORIE
         if (item.categorie === 'skin_sword') {
-            // Si c'est un skin, on l'ajoute dans son inventaire de cosmétiques (son sac à dos web)
-            // IGNORE évite les erreurs si le joueur clique deux fois sur un skin qu'il possède déjà
-            await pool.query(
-                "INSERT IGNORE INTO player_inventory (uuid, item_id, is_equipped) VALUES (?, ?, FALSE)", 
-                [uuid, item.id]
-            );
+            await pool.query("INSERT IGNORE INTO player_inventory (uuid, item_id, is_equipped) VALUES (?, ?, FALSE)", [uuid, item.id]);
             console.log(`🛒 ${player.pseudo} a débloqué le skin : ${item.nom}`);
         } 
-        
-        // (Plus tard, on pourra ajouter ici un "else if (item.categorie === 'event')" pour Crafty !)
 
-        // On renvoie la réponse positive à React avec le nouveau solde
         res.json({ success: true, itemName: item.nom, newSolde: nouveauSolde });
-
     } catch (error) {
         console.error("❌ Erreur achat :", error.message);
-        if (error.name === "JsonWebTokenError" || error.name === "TokenExpiredError") {
-            return res.status(403).json({ error: "Session expirée. Reconnecte-toi." });
-        }
-        res.status(500).json({ error: "Erreur interne du serveur." });
+        res.status(500).json({ error: "Erreur interne." });
     }
 });
 
