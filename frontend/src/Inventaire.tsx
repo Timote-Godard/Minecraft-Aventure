@@ -1,23 +1,21 @@
 import { useState, useEffect } from 'react';
 
-// 1. La structure d'un objet possédé
+// 1. Mise à jour de l'interface
 interface InventoryItem {
   id: number;
   nom: string;
   description: string;
-  categorie: string;
+  target_item: string; // <-- Remplacement de categorie
   custom_model_data: number;
-  is_equipped: boolean | number; // MySQL renvoie parfois 1 ou 0 au lieu de true/false
+  is_equipped: boolean | number;
 }
 
 export default function Inventaire() {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // 2. Fonction pour charger le sac à dos
   const fetchInventory = () => {
     const token = localStorage.getItem('aventure_token');
-    
     if (!token) return;
 
     fetch('https://api-minecraft.timote.ovh/api/inventory', {
@@ -34,57 +32,37 @@ export default function Inventaire() {
       });
   };
 
-  // On charge au démarrage du composant
   useEffect(() => {
     fetchInventory();
   }, []);
 
-  // 3. Fonction pour équiper un objet
   const handleEquip = (itemId: number) => {
     const token = localStorage.getItem('aventure_token');
     if (!token) return;
 
     fetch('https://api-minecraft.timote.ovh/api/inventory/equip', {
       method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}` 
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({ itemId })
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.error) {
-          alert("❌ " + data.error);
-        } else {
-          // Si succès, on recharge l'inventaire pour mettre à jour les boutons visuellement
-          fetchInventory(); 
-        }
-      });
+    }).then(() => fetchInventory());
   };
 
-  // 4. Fonction pour retirer un objet
   const handleUnequip = (itemId: number) => {
     const token = localStorage.getItem('aventure_token');
     if (!token) return;
 
     fetch('https://api-minecraft.timote.ovh/api/inventory/unequip', {
       method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}` 
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({ itemId })
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.error) {
-          alert("❌ " + data.error);
-        } else {
-          // On recharge l'inventaire visuellement
-          fetchInventory(); 
-        }
-      });
+    }).then(() => fetchInventory());
+  };
+
+  // 🪄 La même fonction de formatage que pour la boutique
+  const getImagePath = (targetItem: string, modelData: number) => {
+    if (!targetItem) return '/images/default.png';
+    const folderName = targetItem.replace('minecraft:', '').replace(/_/g, '-');
+    return `/images/${folderName}/${modelData}.png`;
   };
 
   if (loading) {
@@ -103,7 +81,6 @@ export default function Inventaire() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
       {items.map((item) => {
-        // MySQL peut renvoyer 1 (vrai) ou 0 (faux)
         const isEquipped = item.is_equipped === true || item.is_equipped === 1;
 
         return (
@@ -112,8 +89,18 @@ export default function Inventaire() {
             className={`bg-white border-4 border-black rounded-2xl p-6 shadow-[8px_8px_0px_0px_#000] flex flex-col justify-between transition-all ${isEquipped ? 'ring-4 ring-[#4ade80] ring-offset-4' : ''}`}
           >
             <div>
+              {/* 🖼️ L'image de l'inventaire */}
+              <div className="bg-gray-100 rounded-xl border-2 border-black p-4 mb-4 flex justify-center items-center h-40">
+                <img 
+                  src={getImagePath(item.target_item, item.custom_model_data)} 
+                  alt={item.nom} 
+                  className="max-h-full max-w-full object-contain"
+                  onError={(e) => { e.currentTarget.src = '/images/default.png' }}
+                />
+              </div>
+
               <h3 className="text-2xl font-black uppercase mb-2">
-                {item.categorie === 'skin_sword' ? '💎' : '☁️'} {item.nom}
+                {item.nom}
               </h3>
               <p className="text-gray-700 font-medium mb-6">
                 {item.description}
@@ -126,7 +113,6 @@ export default function Inventaire() {
                   onClick={() => handleUnequip(item.id)}
                   className="group bg-[#4ade80] hover:bg-[#ff6b6b] text-black hover:text-white font-black uppercase border-4 border-black px-6 py-2 rounded-xl shadow-[4px_4px_0px_0px_#000] active:translate-x-1 active:translate-y-1 active:shadow-none transition-all"
                 >
-                  {/* Astuce Tailwind : Le texte change au survol ! */}
                   <span className="group-hover:hidden">Équipé ✅</span>
                   <span className="hidden group-hover:inline">Retirer ❌</span>
                 </button>

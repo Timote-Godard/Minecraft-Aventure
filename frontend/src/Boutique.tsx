@@ -1,16 +1,15 @@
 import { useState, useEffect } from 'react';
 
-// 1. Définition de la structure d'un item de la base de données pour TypeScript
+// 1. Mise à jour de l'interface : Adieu categorie, bonjour target_item !
 interface ShopItem {
   id: number;
   nom: string;
   description: string;
   prix: number;
-  categorie: string;
+  target_item: string; 
   custom_model_data: number;
 }
 
-// 2. Les Props attendues par le composant Boutique
 interface BoutiqueProps {
   handleBuyItem: (itemId: number) => void;
 }
@@ -19,7 +18,6 @@ export default function Boutique({ handleBuyItem }: BoutiqueProps) {
   const [items, setItems] = useState<ShopItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // 3. Chargement automatique des articles depuis ton API
   useEffect(() => {
     fetch('https://api-minecraft.timote.ovh/api/shop/items')
       .then((res) => res.json())
@@ -33,21 +31,37 @@ export default function Boutique({ handleBuyItem }: BoutiqueProps) {
       });
   }, []);
 
+  // 🪄 Fonction magique pour transformer "minecraft:wooden_sword" en "wooden-sword"
+  const getImagePath = (targetItem: string, modelData: number) => {
+    if (!targetItem) return '/images/default.png'; // Sécurité
+    const folderName = targetItem.replace('minecraft:', '').replace(/_/g, '-');
+    return `/images/${folderName}/${modelData}.png`;
+  };
+
   if (loading) {
     return <div className="text-center font-black text-2xl uppercase mt-10">Chargement de la boutique... 🛒</div>;
   }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-      {/* 4. La boucle magique .map() qui génère les cartes automatiquement ! */}
       {items.map((item) => (
         <div 
           key={item.id} 
           className="bg-white border-4 border-black rounded-2xl p-6 shadow-[8px_8px_0px_0px_#000] flex flex-col justify-between"
         >
           <div>
+            {/* 🖼️ L'image générée dynamiquement */}
+            <div className="bg-gray-100 rounded-xl border-2 border-black p-4 mb-4 flex justify-center items-center h-40">
+              <img 
+                src={getImagePath(item.target_item, item.custom_model_data)} 
+                alt={item.nom} 
+                className="max-h-full max-w-full object-contain"
+                onError={(e) => { e.currentTarget.src = '/images/default.png' }} // Si l'image n'existe pas, on met une image par défaut
+              />
+            </div>
+
             <h3 className="text-2xl font-black uppercase mb-2">
-              {item.categorie === 'skin_sword' ? '💎' : '☁️'} {item.nom}
+               {item.nom}
             </h3>
             <p className="text-gray-700 font-medium mb-6">
               {item.description}
@@ -57,7 +71,7 @@ export default function Boutique({ handleBuyItem }: BoutiqueProps) {
           <div className="flex justify-between items-center mt-auto">
             <span className="text-3xl font-black text-[#ff6b6b]">{item.prix} PC</span>
             <button 
-              onClick={() => handleBuyItem(item.id)} // On passe l'id unique de l'item cliqué
+              onClick={() => handleBuyItem(item.id)}
               className="bg-[#ffde4d] font-black uppercase border-4 border-black px-6 py-2 rounded-xl shadow-[4px_4px_0px_0px_#000] active:translate-x-1 active:translate-y-1 active:shadow-none transition-all"
             >
               Acheter

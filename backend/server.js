@@ -79,7 +79,7 @@ async function initDB() {
             item_id INT,
             is_equipped BOOLEAN DEFAULT FALSE,
             PRIMARY KEY(uuid, item_id),
-            FOREIGN KEY(item_id) REFERENCES shop_items(id) ON DELETE CASCADE,
+            FOREIGN KEY(item_id) REFERENCES shop_items(id)  ,
             FOREIGN KEY(uuid) REFERENCES players(uuid) ON DELETE CASCADE
         )`);
         
