@@ -87,7 +87,7 @@ async function initDB() {
         await pool.query(`INSERT IGNORE INTO players (uuid, pseudo, solde) VALUES ('12-abcd', 'TimTeam', 500)`);
         
         // Mise à jour de ton premier skin pour qu'il cible explicitement l'épée en bois !
-        await pool.query(`INSERT INTO shop_items (id, nom, description, prix, categorie, custom_model_data, target_item) 
+        await pool.query(`INSERT INTO shop_items (id, nom, description, prix, custom_model_data, target_item) 
             VALUES (1, 'Épée de Feu', 'Une lame incandescente forgée dans le Nether.', 150, 'skin_sword', 1, 'minecraft:wooden_sword')
             ON DUPLICATE KEY UPDATE target_item = 'minecraft:wooden_sword', custom_model_data = 1`);
             
@@ -142,7 +142,7 @@ app.get('/api/inventory', async (req, res) => {
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
         const [rows] = await pool.query(`
-            SELECT shop_items.id, shop_items.nom, shop_items.description, shop_items.categorie, shop_items.custom_model_data, shop_items.target_item, player_inventory.is_equipped 
+            SELECT shop_items.id, shop_items.nom, shop_items.description, shop_items.custom_model_data, shop_items.target_item, player_inventory.is_equipped 
             FROM player_inventory 
             JOIN shop_items ON player_inventory.item_id = shop_items.id 
             WHERE player_inventory.uuid = ?
