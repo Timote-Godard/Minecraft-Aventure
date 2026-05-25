@@ -96,10 +96,15 @@ export default function Inventaire() {
                   alt={item.nom} 
                   className="max-h-full max-w-full object-contain"
                   onError={(e) => { 
-                    // On désactive l'erreur pour empêcher la boucle infinie de clignotement
-                    e.currentTarget.onerror = null; 
-                    e.currentTarget.src = '/images/default.png'; 
-                  }} 
+                  // 1. Si la source ne contient pas "default.png", on essaie l'image de secours
+                  if (!e.currentTarget.src.includes('default.png')) {
+                    e.currentTarget.src = '/images/default.png';
+                  } 
+                  // 2. Si c'est DÉJÀ l'image de secours et qu'elle plante AUSSI, on coupe tout !
+                  else {
+                    e.currentTarget.style.display = 'none';
+                  }
+                }}
                 />
               </div>
 
