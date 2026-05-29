@@ -66,11 +66,12 @@ async function initDB() {
         // Catalogue de la boutique (avec target_item inclus pour les nouvelles installations)
         await pool.query(`CREATE TABLE IF NOT EXISTS shop_items (
             id INT AUTO_INCREMENT PRIMARY KEY,
-            nom VARCHAR(255),
+            nom VARCHAR(255) NOT NULL,
             description TEXT,
-            prix INT,
-            custom_model_data INT,
-            target_item VARCHAR(100) DEFAULT 'minecraft:wooden_sword'
+            prix INT NOT NULL,
+            custom_model_data INT NOT NULL,
+            target_item VARCHAR(100) NOT NULL,
+            categorie ENUM('chapeau', 'evenementPositif', 'evenementNegatif', 'cosmetique', 'epee', 'pioche', 'houe', 'pelle', 'hache', 'bouclier', 'arc', 'arbalete', 'bottes', 'pantalon', 'plastron','casque','elytre') NOT NULL
         )`);
 
         // Sac à dos des joueurs
@@ -137,7 +138,7 @@ app.post('/api/login', async (req, res) => {
 app.get('/api/inventory', async (req, res) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
-    if (!token) return res.status(401).json({ error: "Accès refusé." });
+    if (!token) return res.status(401).json({ error: "déconnecté" });
 
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
@@ -158,7 +159,7 @@ app.get('/api/inventory', async (req, res) => {
 app.post('/api/inventory/unequip', async (req, res) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
-    if (!token) return res.status(401).json({ error: "Accès refusé." });
+    if (!token) return res.status(401).json({ error: "déconnecté" });
 
     const { itemId } = req.body;
 
@@ -186,7 +187,7 @@ app.post('/api/inventory/unequip', async (req, res) => {
 app.post('/api/inventory/equip', async (req, res) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
-    if (!token) return res.status(401).json({ error: "Accès refusé." });
+    if (!token) return res.status(401).json({ error: "déconnecté" });
 
     const { itemId } = req.body;
 
@@ -234,7 +235,7 @@ app.get('/api/shop/items', async (req, res) => {
 app.post('/api/shop/buy/item', async (req, res) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
-    if (!token) return res.status(401).json({ error: "Accès refusé." });
+    if (!token) return res.status(401).json({ error: "déconnecté" });
 
     const { itemId } = req.body;
 
@@ -257,10 +258,18 @@ app.post('/api/shop/buy/item', async (req, res) => {
         // 1. On débite le joueur
         await pool.query("UPDATE players SET solde = ? WHERE uuid = ?", [nouveauSolde, uuid]);
 
-        await pool.query("INSERT IGNORE INTO player_inventory (uuid, item_id, is_equipped) VALUES (?, ?, FALSE)", [uuid, item.id]);
-        
-        // Petit log sympa pour suivre les ventes dans la console
-        console.log(`🛒 ${player.pseudo} a débloqué : ${item.nom} (Cible: ${item.target_item})`);
+        // 2. Traitement selon la catégorie
+        if (item.categorie === 'evenementPositif' || item.categorie === 'evenementNegatif') {
+            
+            // 🚀 Envoi direct de la commande au serveur via Crafty
+            await sendCraftyCommand(decoded.pseudo, item.target_item, item.custom_model_data);
+            console.log(`⚡ ÉVÉNEMENT (${item.categorie}) DÉCLENCHÉ par ${player.pseudo} : ${item.nom}`);
+            
+        } else {
+            // C'est un équipement ou cosmétique : on le range dans son inventaire virtuel
+            await pool.query("INSERT IGNORE INTO player_inventory (uuid, item_id, is_equipped) VALUES (?, ?, FALSE)", [uuid, item.id]);
+            console.log(`🛒 ${player.pseudo} a débloqué un(e) [${item.categorie}] : ${item.nom}`);
+        }
 
         res.json({ success: true, itemName: item.nom, newSolde: nouveauSolde });
     } catch (error) {

@@ -10,7 +10,7 @@ interface InventoryItem {
   is_equipped: boolean | number;
 }
 
-export default function Inventaire() {
+export default function Inventaire({handleLogout} : {handleLogout:()=>void}) {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -28,6 +28,9 @@ export default function Inventaire() {
       })
       .catch((err) => {
         console.error("Erreur de chargement de l'inventaire", err);
+        if (err == "déconnecté") {
+          handleLogout();
+        }
         setLoading(false);
       });
   };

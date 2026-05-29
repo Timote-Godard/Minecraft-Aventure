@@ -12,9 +12,10 @@ interface ShopItem {
 
 interface BoutiqueProps {
   handleBuyItem: (itemId: number) => void;
+  handleLogout: () => void;
 }
 
-export default function Boutique({ handleBuyItem }: BoutiqueProps) {
+export default function Boutique({ handleBuyItem, handleLogout }: BoutiqueProps) {
   const [items, setItems] = useState<ShopItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -27,16 +28,14 @@ export default function Boutique({ handleBuyItem }: BoutiqueProps) {
       })
       .catch((err) => {
         console.error("Impossible de charger la boutique", err);
+        if (err=="déconnecté") {
+          handleLogout();
+        }
         setLoading(false);
       });
   }, []);
 
-  // 🪄 Fonction magique pour transformer "minecraft:wooden_sword" en "wooden-sword"
-  const getImagePath = (targetItem: string, modelData: number) => {
-    if (!targetItem) return '/images/default.png'; // Sécurité
-    const folderName = targetItem.replace('minecraft:', '').replace(/_/g, '-');
-    return `/images/${folderName}/${modelData}.png`;
-  };
+  
 
   if (loading) {
     return <div className="text-center font-black text-2xl uppercase mt-10">Chargement de la boutique... 🛒</div>;
