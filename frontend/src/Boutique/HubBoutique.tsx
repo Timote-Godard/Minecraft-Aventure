@@ -39,13 +39,12 @@ interface ShopItem {
 interface HubBoutiqueProps {
   items: ShopItem[];
   handleBuyItem: (itemId: number) => void;
-  handleLogout: () => void;
 }
 
 
 
 
-export default function HubBoutique({ handleBuyItem, handleLogout, items }: HubBoutiqueProps) {
+export default function HubBoutique({ handleBuyItem, items }: HubBoutiqueProps) {
 
      const [sousMenu, setSousMenu] = useState('hub');
 
@@ -108,10 +107,10 @@ export default function HubBoutique({ handleBuyItem, handleLogout, items }: HubB
             </>
             )}
 
-            {sousMenu === 'armurie' && <ArmureBoutique getImagePath={getImagePath} items={itemsArmurerie} handleBuyItem={handleBuyItem} handleLogout={handleLogout}/>}
-            {sousMenu === 'combat' && <ArmesBoutique getImagePath={getImagePath} items={itemsCombat} handleBuyItem={handleBuyItem} handleLogout={handleLogout}/>}
-            {sousMenu === 'outils' && <OutilsBoutique getImagePath={getImagePath} items={itemsOutils} handleBuyItem={handleBuyItem} handleLogout={handleLogout}/>}
-            {sousMenu === 'style' && <SapologieBoutique getImagePath={getImagePath} items={itemsStyle} handleBuyItem={handleBuyItem} handleLogout={handleLogout}/>}
+            {sousMenu === 'armurie' && <ArmureBoutique getImagePath={getImagePath} items={itemsArmurerie} handleBuyItem={handleBuyItem} />}
+            {sousMenu === 'combat' && <ArmesBoutique getImagePath={getImagePath} items={itemsCombat} handleBuyItem={handleBuyItem} />}
+            {sousMenu === 'outils' && <OutilsBoutique getImagePath={getImagePath} items={itemsOutils} handleBuyItem={handleBuyItem} />}
+            {sousMenu === 'style' && <SapologieBoutique getImagePath={getImagePath} items={itemsStyle} handleBuyItem={handleBuyItem} />}
             
         </div>
     )
