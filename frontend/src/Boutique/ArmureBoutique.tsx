@@ -34,10 +34,9 @@ interface ArmureBoutiqueProps {
   items: ShopItem[];
    getImagePath: (targetItem: string, modelData: number) => string;
   handleBuyItem: (itemId: number) => void;
-  handleLogout: () => void;
 }
 
-export default function ArmureBoutique({ handleBuyItem, handleLogout, items, getImagePath }: ArmureBoutiqueProps) {
+export default function ArmureBoutique({ handleBuyItem, items, getImagePath }: ArmureBoutiqueProps) {
   // État pour gérer la catégorie de gauche
   const [activeTab, setActiveTab] = useState(0);
   const categories = ['Epee', 'Arc', 'Arbalete', 'Trident'];
