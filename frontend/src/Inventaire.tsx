@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 interface InventoryItem {
   id: number;
@@ -8,22 +8,6 @@ interface InventoryItem {
   custom_model_data: number;
   is_equipped: boolean | number;
 }
-
-const MOCK_INVENTORY: InventoryItem[] = [
-  { id: 1, nom: "Casque du Roi", description: "Protège bien la tête.", target_item: "diamond_helmet", custom_model_data: 1, is_equipped: true },
-  { id: 2, nom: "Plastron en Acier", description: "Lourd mais solide.", target_item: "iron_chestplate", custom_model_data: 1, is_equipped: true },
-  { id: 3, nom: "Jambières de Vitesse", description: "Légères.", target_item: "leather_leggings", custom_model_data: 2, is_equipped: true },
-  { id: 4, nom: "Bottes de Chute", description: "Amortit les dégâts.", target_item: "golden_boots", custom_model_data: 2, is_equipped: true },
-  { id: 5, nom: "Excalibur", description: "Épée légendaire.", target_item: "netherite_sword", custom_model_data: 5, is_equipped: true },
-  { id: 6, nom: "Bouclier en bois", description: "Bloque les flèches.", target_item: "shield", custom_model_data: 2, is_equipped: true },
-  { id: 7, nom: "Arc de Chasseur", description: "Tir rapide.", target_item: "bow", custom_model_data: 1, is_equipped: false },
-  { id: 8, nom: "Pioche du Mineur", description: "Efficace sur la roche.", target_item: "diamond_pickaxe", custom_model_data: 2, is_equipped: false },
-  { id: 9, nom: "Houe en Fer", description: "Pour cultiver.", target_item: "iron_hoe", custom_model_data: 4, is_equipped: false },
-  { id: 10, nom: "Arbalète Lourde", description: "Tir puissant.", target_item: "crossbow", custom_model_data: 3, is_equipped: false },
-  { id: 11, nom: "Trident des Mers", description: "Arme aquatique.", target_item: "trident", custom_model_data: 1, is_equipped: false },
-  { id: 12, nom: "Pelle en Diamant", description: "Creuse vite.", target_item: "diamond_shovel", custom_model_data: 1, is_equipped: false },
-  { id: 13, nom: "Hache de Fer", description: "Tranche le bois.", target_item: "iron_axe", custom_model_data: 1, is_equipped: false },
-];
 
 const FILTER_MAP: Record<string, string[]> = {
   helmet: ['helmet'],
@@ -82,7 +66,7 @@ const isExactMatch = (target: string, kw: string) => {
   return new RegExp(`(^|_|:)${kw}(_|$)`).test(target);
 };
 
-export default function Inventaire({ itemsInventory, setItemsInventory, handleLogout, pseudo }: { itemsInventory: InventoryItem[]; setItemsInventory: (value: InventoryItem[] | ((prevState: InventoryItem[]) => InventoryItem[])) => void; handleLogout: () => void; pseudo: string }) {
+export default function Inventaire({ itemsInventory, setItemsInventory, pseudo }: { itemsInventory: InventoryItem[]; setItemsInventory: (value: InventoryItem[] | ((prevState: InventoryItem[]) => InventoryItem[])) => void; handleLogout: () => void; pseudo: string }) {
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
   const [activeMaterial, setActiveMaterial] = useState<string | null>(null);
 
