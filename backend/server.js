@@ -25,7 +25,8 @@ const pool = mysql.createPool({
     database: 'minecraft_db',
     waitForConnections: true,
     connectionLimit: 10,
-    queueLimit: 0
+    queueLimit: 0,
+    multipleStatements: true
 });
 
 const dicoEvents = {
@@ -67,7 +68,9 @@ async function sendCraftyCommand(pseudo, targetItem, categorie, customModelData 
     }
 }
 
-// 🗄️ Initialisation des tables
+async const fs = require('fs').promises;
+const path = require('path');
+
 async function initDB() {
     try {
         // Table des joueurs
@@ -77,7 +80,7 @@ async function initDB() {
             solde INT DEFAULT 500
         )`);
         
-        // Catalogue de la boutique (avec target_item inclus pour les nouvelles installations)
+        // Catalogue de la boutique
         await pool.query(`CREATE TABLE IF NOT EXISTS shop_items (
             id INT AUTO_INCREMENT PRIMARY KEY,
             nom VARCHAR(255) NOT NULL,
@@ -94,25 +97,26 @@ async function initDB() {
             item_id INT,
             is_equipped BOOLEAN DEFAULT FALSE,
             PRIMARY KEY(uuid, item_id),
-            FOREIGN KEY(item_id) REFERENCES shop_items(id)  ,
+            FOREIGN KEY(item_id) REFERENCES shop_items(id),
             FOREIGN KEY(uuid) REFERENCES players(uuid) ON DELETE CASCADE
         )`);
         
-        // Insertion de test
-        await pool.query(`INSERT IGNORE INTO players (uuid, pseudo, solde) VALUES ('12-abcd', 'TimTeam', 500)`);
+        // Lecture et exécution du fichier d'initialisation de données
+        const cheminFichier = path.join(__dirname, 'requetes_insert.sql');
+        const sqlString = await fs.readFile(cheminFichier, 'utf-8');
         
-        // Mise à jour de ton premier skin pour qu'il cible explicitement l'épée en bois !
-        await pool.query(`INSERT INTO shop_items (id, nom, description, prix, custom_model_data, target_item) 
-            VALUES (1, 'Épée de Feu', 'Une lame incandescente forgée dans le Nether.', 150, 'skin_sword', 1, 'minecraft:wooden_sword')
-            ON DUPLICATE KEY UPDATE target_item = 'minecraft:wooden_sword', custom_model_data = 1`);
+        if (sqlString.trim().length > 0) {
+            await pool.query(sqlString);
+            console.log("✅ Données du fichier SQL insérées avec succès !");
+        }
             
         console.log("✅ Connecté à MySQL et toutes les tables sont prêtes !");
     } catch (err) {
         console.error("❌ Erreur d'initialisation BDD:", err.message);
     }
 }
-initDB();
 
+initDB();
 
 // --- ROUTE DE CONNEXION ---
 app.post('/api/login', async (req, res) => {

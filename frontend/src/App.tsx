@@ -16,7 +16,7 @@ interface InventoryItem {
 }
 
 export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [activeTab, setActiveTab] = useState('shop'); // Mis sur 'shop' par défaut pour tester
   const [refreshKey, setRefreshKey] = useState(0);
   const [items, setItems] = useState<ShopItem[]>([]);
