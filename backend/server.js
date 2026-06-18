@@ -331,9 +331,9 @@ app.get('/api/players/online', async (req, res) => {
 
         const json = await response.json();
         
-        // Extraction de la liste des joueurs depuis la réponse de Crafty
-        // La structure exacte dépend de la version de l'API Crafty (v2)
-        const players = json.data?.players || [];
+        const rawPlayers = json.data?.players || [];
+        // Extraction stricte des chaînes de caractères pour éviter le crash de React
+        const players = rawPlayers.map(p => typeof p === 'string' ? p : (p.name || p.username)).filter(Boolean);
 
         res.json({ success: true, players: players });
     } catch (error) {

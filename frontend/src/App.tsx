@@ -42,12 +42,19 @@ export default function App() {
     fetch('https://api-minecraft.timote.ovh/api/shop/items')
       .then((res) => res.json())
       .then((data: ShopItem[]) => { 
+        // POINT DE CONTRÔLE 1 : Vérifier la sortie de l'API
+        console.log("1. Données brutes de l'API :", data);
 
-        setItems(data.filter((item) => [
+        const filteredItems = data.filter((item) => [
           'casque', 'plastron', 'pantalon', 'bottes', 'elytre',
           'epee', 'arc', 'arbalete', 'bouclier', 'pioche', 'hache', 
           'pelle', 'houe', 'cosmetiques', 'chapeau', 'cosmetique'
-        ].includes(item.categorie)));
+        ].includes(item.categorie));
+
+        // POINT DE CONTRÔLE 2 : Vérifier le filtre global
+        console.log("2. Données conservées pour la boutique :", filteredItems);
+
+        setItems(filteredItems);
 
         setDeals(data.filter((item) => [
           'evenementPositif', 'evenementNegatif'
