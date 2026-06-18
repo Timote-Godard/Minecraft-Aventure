@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 
 // --- SOUS-COMPOSANT : Gère l'état d'une seule carte ---
 const DealCard = ({ deal, onlinePlayers, handleBuyDeal }: { deal: any, onlinePlayers: string[], handleBuyDeal: (itemId: number, targets: string[]) => void }) => {
