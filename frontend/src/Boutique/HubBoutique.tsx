@@ -3,6 +3,7 @@ import ArmesBoutique from "./ArmesBoutique"
 import ArmureBoutique from "./ArmureBoutique"
 import OutilsBoutique from "./OutilsBoutique"
 import SapologieBoutique from "./SapologieBoutique"
+import type { InventoryItem } from "./types";
 
 
 type TypeItem =
@@ -39,34 +40,36 @@ interface ShopItem {
 interface HubBoutiqueProps {
   items: ShopItem[];
   handleBuyItem: (itemId: number) => void;
+  itemsInventory: InventoryItem[];
 }
 
 
 
 
-export default function HubBoutique({ handleBuyItem, items }: HubBoutiqueProps) {
+export default function HubBoutique({ handleBuyItem, items, itemsInventory }: HubBoutiqueProps) {
 
      const [sousMenu, setSousMenu] = useState('hub');
 
      const itemsArmurerie = items.filter(item => ['casque', 'plastron', 'pantalon', 'bottes', 'elytre'].includes(item.categorie));
     const itemsCombat = items.filter(item => ['epee', 'arc', 'arbalete', 'bouclier'].includes(item.categorie));
     const itemsOutils = items.filter(item => ['pioche', 'hache', 'pelle', 'houe'].includes(item.categorie));
-    const itemsStyle = items.filter(item => ['cosmetiques', 'chapeau', 'cosmetique'].includes(item.categorie));
+    const itemsStyle = items.filter(item => ['chapeau', 'cosmetique'].includes(item.categorie));
 
-    const styleDiv = "relative border-2 border-black h-180 w-full rounded-sm bottom-0 cursor-pointer overflow-hidden";
-    const styleImg = "w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-    const styleTitre = "absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10 transition-transform duration-300"
+    const styleDiv = "group relative border-2 border-black h-180 w-full rounded-sm bottom-0 cursor-pointer overflow-hidden";
+    const styleImg = "w-100 h-full object-cover group-hover:scale-105 transition-transform duration-300"
+    const styleTitre = "absolute bottom-4 w-100 h-30 left-1/2 transform -translate-x-1/2 z-10 transition-transform duration-300"
 
     // 🪄 Fonction magique pour transformer "minecraft:wooden_sword" en "wooden-sword"
     const getImagePath = (targetItem: string, modelData: number) => {
         if (!targetItem) return '/images/default.png'; // Sécurité
-        const folderName = targetItem.replace('minecraft:', '').replace(/_/g, '-');
-        return `/images/${folderName}/${modelData}.png`;
+        if (targetItem === 'carved_pumpkin') return `/images/skins/cosmetiques/${modelData}.webp`; // Cas spécial pour la citrouille sculptée
+        const folderName = targetItem.replace('minecraft:', '').replace(/_/g, '/');
+        return `/images/skins/${folderName}/${modelData}.webp`;
     };
 
     return (
 
-        <div className="flex gap-5   justify-center">
+        <div className="flex gap-5 justify-center">
             {sousMenu === 'hub' && ( 
                 <>
                 {/* Shop des armures : l'armurie */}
@@ -74,8 +77,8 @@ export default function HubBoutique({ handleBuyItem, items }: HubBoutiqueProps) 
                     className={styleDiv}
                     onClick={() => setSousMenu('armurie')}
                 >
-                    <img className={styleImg} src="images/boutique/armure.png" alt="armurie"/>
-                    <img className={styleTitre} src="images/boutique/armurieTitre.png" alt="TitreStyleMinecraft"/>
+                    <img className={styleImg} src="images/boutique/armure.webp" alt="armurie"/>
+                    <img className={styleTitre} src="images/boutique/armurieTitre.webp" alt="TitreStyleMinecraft"/>
                 </div>
 
                 {/* Shop des épées, arcs, arbalètes : le combat */}
@@ -83,8 +86,8 @@ export default function HubBoutique({ handleBuyItem, items }: HubBoutiqueProps) 
                     className={styleDiv}
                     onClick={() => setSousMenu('combat')}
                 >
-                    <img className={styleImg} src="images/boutique/combat.png" alt="combat"/>
-                    <img className={styleTitre} src="images/boutique/combatTitre.png" alt="TitreStyleMinecraft"/>
+                    <img className={styleImg} src="images/boutique/combat.webp" alt="combat"/>
+                    <img className={styleTitre} src="images/boutique/combatTitre.webp" alt="TitreStyleMinecraft"/>
                 </div>
 
                 {/* Shop des outils : le travail */}
@@ -92,8 +95,8 @@ export default function HubBoutique({ handleBuyItem, items }: HubBoutiqueProps) 
                     className={styleDiv}
                     onClick={() => setSousMenu('outils')}
                 >
-                    <img className={styleImg} src="images/boutique/farm.png" alt="outils"/>
-                    <img className={styleTitre} src="images/boutique/outilsTitre.png" alt="TitreStyleMinecraft"/>
+                    <img className={styleImg} src="images/boutique/farm.webp" alt="outils"/>
+                    <img className={styleTitre} src="images/boutique/outilsTitre.webp" alt="TitreStyleMinecraft"/>
                 </div>
 
                 {/* Shop des cosmétiques : le style */}
@@ -101,16 +104,16 @@ export default function HubBoutique({ handleBuyItem, items }: HubBoutiqueProps) 
                     className={styleDiv}
                     onClick={() => setSousMenu('style')}
                 >
-                    <img className={styleImg} src="images/boutique/costard.png" alt="style"/>
-                    <img className={styleTitre}  src="images/boutique/cosmetiquesTitre.png" alt="TitreStyleMinecraft"/>
+                    <img className={styleImg} src="images/boutique/costard.webp" alt="style"/>
+                    <img className={styleTitre}  src="images/boutique/cosmetiquesTitre.webp " alt="TitreStyleMinecraft"/>
                 </div>  
             </>
             )}
 
-            {sousMenu === 'armurie' && <ArmureBoutique getImagePath={getImagePath} items={itemsArmurerie} handleBuyItem={handleBuyItem} />}
-            {sousMenu === 'combat' && <ArmesBoutique getImagePath={getImagePath} items={itemsCombat} handleBuyItem={handleBuyItem} />}
-            {sousMenu === 'outils' && <OutilsBoutique getImagePath={getImagePath} items={itemsOutils} handleBuyItem={handleBuyItem} />}
-            {sousMenu === 'style' && <SapologieBoutique getImagePath={getImagePath} items={itemsStyle} handleBuyItem={handleBuyItem} />}
+            {sousMenu === 'armurie' && <ArmureBoutique getImagePath={getImagePath} itemsInventory={itemsInventory} items={itemsArmurerie} handleBuyItem={handleBuyItem} />}
+            {sousMenu === 'combat' && <ArmesBoutique getImagePath={getImagePath} itemsInventory={itemsInventory} items={itemsCombat} handleBuyItem={handleBuyItem} />}
+            {sousMenu === 'outils' && <OutilsBoutique getImagePath={getImagePath} itemsInventory={itemsInventory} items={itemsOutils} handleBuyItem={handleBuyItem} />}
+            {sousMenu === 'style' && <SapologieBoutique getImagePath={getImagePath} itemsInventory={itemsInventory} items={itemsStyle} handleBuyItem={handleBuyItem} />}
             
         </div>
     )

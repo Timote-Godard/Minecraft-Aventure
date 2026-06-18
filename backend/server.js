@@ -15,6 +15,7 @@ app.use(express.json());
 const JWT_SECRET = process.env.JWT_SECRET;
 const CRAFTY_TOKEN = process.env.CRAFTY_TOKEN;
 const CRAFTY_API_URL = process.env.CRAFTY_API_URL;
+const CRAFTY_STATS_URL = process.env.CRAFTY_STATS_URL;
 
 // 🔌 Connexion à la base de données MySQL
 const pool = mysql.createPool({
@@ -27,19 +28,32 @@ const pool = mysql.createPool({
     queueLimit: 0
 });
 
+const dicoEvents = {
+    "stopPluie" : "weather clear",
+    "thunder" : "weather thunder",
+
+}
+
 // 📡 FONCTION MAGIQUE : Envoie la commande en direct à l'API de Crafty
-async function sendCraftyCommand(pseudo, targetItem, modelData) {
+async function sendCraftyCommand(pseudo, targetItem, categorie, customModelData = 0) {
     try {
-        // Ex: skin-update TimTeam minecraft:wooden_sword 1
-        const command = `skin-update ${pseudo} ${targetItem} ${modelData}`;
+        let command = "";
+
+        if (categorie === 'evenementPositif' || categorie === 'evenementNegatif') {
+            command = targetItem.replace('{player}', pseudo);
+        } else {
+            // Remplacez cette ligne par la syntaxe exacte de votre mod pour les skins
+            // Exemple générique :
+            command = `skin-update ${pseudo} ${targetItem} ${customModelData}`;
+        }
         
         const response = await fetch(CRAFTY_API_URL, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${CRAFTY_TOKEN}`,
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json' // Crafty attend la commande brute
             },
-            body: command
+            body: command 
         });
         
         if (!response.ok) {
@@ -174,7 +188,7 @@ app.post('/api/inventory/unequip', async (req, res) => {
         await pool.query(`UPDATE player_inventory SET is_equipped = FALSE WHERE uuid = ? AND item_id = ?`, [uuid, itemId]);
 
         // 🚀 SYNC EN JEU : On envoie 0 à Crafty pour retirer l'illusion sur cet item précis
-        await sendCraftyCommand(decoded.pseudo, itemRows[0].target_item, 0);
+        await sendCraftyCommand(decoded.pseudo, itemRows[0].target_item, 'cosmetique', 0);
 
         res.json({ success: true, message: "Skin retiré avec succès !" });
     } catch (error) {
@@ -213,7 +227,7 @@ app.post('/api/inventory/equip', async (req, res) => {
         await pool.query(`UPDATE player_inventory SET is_equipped = TRUE WHERE uuid = ? AND item_id = ?`, [uuid, itemId]);
 
         // 🚀 SYNC EN JEU : On envoie l'ordre en temps réel à Crafty !
-        await sendCraftyCommand(decoded.pseudo, target_item, custom_model_data);
+        await sendCraftyCommand(decoded.pseudo, target_item, 'cosmetique', custom_model_data);
 
         res.json({ success: true, message: "Skin équipé avec succès !" });
     } catch (error) {
@@ -231,13 +245,23 @@ app.get('/api/shop/items', async (req, res) => {
     }
 });
 
+// --- ROUTE POUR VOIR LES DEALS ---
+app.get('/api/shop/deals', async (req, res) => {
+    try {
+        const [rows] = await pool.query("SELECT * FROM shop_items WHERE categorie IN ('evenementPositif', 'evenementNegatif')");
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // --- ROUTE POUR ACHETER UN OBJET ---
-app.post('/api/shop/buy/item', async (req, res) => {
+app.post('/api/shop/buy', async (req, res) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
     if (!token) return res.status(401).json({ error: "déconnecté" });
 
-    const { itemId } = req.body;
+    const { itemId, targetPlayer } = req.body;
 
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
@@ -260,11 +284,15 @@ app.post('/api/shop/buy/item', async (req, res) => {
 
         // 2. Traitement selon la catégorie
         if (item.categorie === 'evenementPositif' || item.categorie === 'evenementNegatif') {
+            // Remplacement des deux variables possibles
+            let finalCommand = item.target_item.replace('{player}', player.pseudo);
             
-            // 🚀 Envoi direct de la commande au serveur via Crafty
-            await sendCraftyCommand(decoded.pseudo, item.target_item, item.custom_model_data);
-            console.log(`⚡ ÉVÉNEMENT (${item.categorie}) DÉCLENCHÉ par ${player.pseudo} : ${item.nom}`);
-            
+            if (targetPlayer) {
+                finalCommand = finalCommand.replace('{target}', targetPlayer);
+            }
+
+            // Envoi de la commande formatée
+            await sendCraftyCommand(player.pseudo, finalCommand, item.categorie);
         } else {
             // C'est un équipement ou cosmétique : on le range dans son inventaire virtuel
             await pool.query("INSERT IGNORE INTO player_inventory (uuid, item_id, is_equipped) VALUES (?, ?, FALSE)", [uuid, item.id]);
@@ -275,6 +303,32 @@ app.post('/api/shop/buy/item', async (req, res) => {
     } catch (error) {
         console.error("❌ Erreur achat :", error.message);
         res.status(500).json({ error: "Erreur interne." });
+    }
+});
+
+app.get('/api/players/online', async (req, res) => {
+    try {
+        const response = await fetch(CRAFTY_STATS_URL, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${CRAFTY_TOKEN}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Erreur HTTP Crafty: ${response.status}`);
+        }
+
+        const json = await response.json();
+        
+        // Extraction de la liste des joueurs depuis la réponse de Crafty
+        // La structure exacte dépend de la version de l'API Crafty (v2)
+        const players = json.data?.players || [];
+
+        res.json({ success: true, players: players });
+    } catch (error) {
+        console.error("❌ Erreur de récupération des joueurs via Crafty :", error.message);
+        res.status(500).json({ error: "Impossible de récupérer les joueurs." });
     }
 });
 
