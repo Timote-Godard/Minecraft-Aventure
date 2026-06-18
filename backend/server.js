@@ -331,9 +331,19 @@ app.get('/api/players/online', async (req, res) => {
 
         const json = await response.json();
         
-        const rawPlayers = json.data?.players || [];
-        // Extraction stricte des chaînes de caractères pour éviter le crash de React
-        const players = rawPlayers.map(p => typeof p === 'string' ? p : (p.name || p.username)).filter(Boolean);
+        // 1. On isole la donnée renvoyée par Crafty
+        let rawPlayers = json.data?.players;
+
+        // 2. BLINDAGE : Si Crafty ne renvoie pas un vrai tableau, on le force à devenir un tableau vide
+        if (!Array.isArray(rawPlayers)) {
+            console.log("⚠️ Info : Crafty n'a pas renvoyé de tableau pour les joueurs. Valeur brute reçue :", rawPlayers);
+            rawPlayers = [];
+        }
+
+        // 3. Traitement sécurisé (maintenant garanti de fonctionner sur un tableau)
+        const players = rawPlayers
+            .map(p => typeof p === 'string' ? p : (p?.name || p?.username))
+            .filter(Boolean); // Retire les valeurs undefined ou nulles
 
         res.json({ success: true, players: players });
     } catch (error) {
