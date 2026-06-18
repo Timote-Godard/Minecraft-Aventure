@@ -261,7 +261,7 @@ app.post('/api/shop/buy', async (req, res) => {
     const token = authHeader && authHeader.split(' ')[1];
     if (!token) return res.status(401).json({ error: "déconnecté" });
 
-    const { itemId, targetPlayer } = req.body;
+    const { itemId, targets } = req.body;
 
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
@@ -284,15 +284,21 @@ app.post('/api/shop/buy', async (req, res) => {
 
         // 2. Traitement selon la catégorie
         if (item.categorie === 'evenementPositif' || item.categorie === 'evenementNegatif') {
-            // Remplacement des deux variables possibles
             let finalCommand = item.target_item.replace('{player}', player.pseudo);
             
-            if (targetPlayer) {
-                finalCommand = finalCommand.replace('{target}', targetPlayer);
+            // Traitement dynamique du tableau de joueurs
+            if (targets && targets.length > 0) {
+                // Remplacement strict pour les événements multi-cibles ({target1}, {target2}...)
+                targets.forEach((target, index) => {
+                    finalCommand = finalCommand.replace(`{target${index + 1}}`, target);
+                });
+                
+                // Remplacement générique pour les événements à cible unique ({target})
+                finalCommand = finalCommand.replace('{target}', targets[0]);
             }
 
-            // Envoi de la commande formatée
             await sendCraftyCommand(player.pseudo, finalCommand, item.categorie);
+            console.log(`⚡ ÉVÉNEMENT DÉCLENCHÉ : ${finalCommand}`);
         } else {
             // C'est un équipement ou cosmétique : on le range dans son inventaire virtuel
             await pool.query("INSERT IGNORE INTO player_inventory (uuid, item_id, is_equipped) VALUES (?, ?, FALSE)", [uuid, item.id]);

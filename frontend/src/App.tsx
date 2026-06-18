@@ -72,7 +72,7 @@ export default function App() {
       });
   };
 
-  const handleBuy = (itemId: number) => {
+const handleBuy = (itemId: number, targets: string[] = []) => {
     const token = localStorage.getItem('aventure_token');
     if (!token) {
       alert("❌ Tu n'es pas connecté !");
@@ -85,7 +85,7 @@ export default function App() {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      body: JSON.stringify({ itemId: itemId })
+      body: JSON.stringify({ itemId: itemId, targets: targets })
     })
     .then(res => res.json())
     .then(data => {
