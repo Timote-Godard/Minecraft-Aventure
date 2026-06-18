@@ -68,7 +68,7 @@ async function sendCraftyCommand(pseudo, targetItem, categorie, customModelData 
     }
 }
 
-async const fs = require('fs').promises;
+const fs = require('fs').promises;
 const path = require('path');
 
 async function initDB() {
