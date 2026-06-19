@@ -123,7 +123,7 @@ export default function Inventaire({ itemsInventory, setItemsInventory, pseudo, 
 
       const isSpecialItem = NO_MATERIALS_ITEMS.some(noMat => realTarget.includes(noMat));
       if (!isSpecialItem) {
-         return i.target_item.startsWith(currentMaterial);
+         return realTarget.startsWith(currentMaterial);
       }
       return false;
     });
