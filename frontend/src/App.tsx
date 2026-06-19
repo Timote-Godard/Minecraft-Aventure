@@ -72,7 +72,7 @@ export default function App() {
     })
       .then((res) => res.json())
       .then((data) => {
-        setItemsInventory(data);
+        setItemsInventory(data.replace('minecraft:', ''));
       })
       .catch((err) => {
         console.error("Impossible de récupérer l'inventaire :", err);
