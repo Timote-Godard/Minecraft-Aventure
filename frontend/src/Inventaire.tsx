@@ -39,7 +39,7 @@ const MATERIALS = [
   { id: 'diamond', label: 'Diamant', icon: 'images/boutique/icones/materiaux/diamant.webp' },
   { id: 'netherite', label: 'Netherite', icon: 'images/boutique/icones/materiaux/netherite.webp' }
 ];
-
+ 
 const McGuiBox = ({ children }: { children: React.ReactNode }) => (
   <div className="relative z-20 grid grid-cols-[2px_2px_auto_2px_2px] grid-rows-[2px_2px_auto_2px_2px] [grid-template-areas:'tl-tl_tr-tl_t_tl-tr_tr-tr'_'bl-tl_br-tl_t_bl-tr_br-tr'_'l_l_inv_r_r'_'tl-bl_tr-bl_b_tl-br_tr-br'_'bl-bl_br-bl_b_bl-br_br-br'] w-full">
     <div className="[grid-area:l] shadow-[-2px_0_0_black] bg-white"></div>
