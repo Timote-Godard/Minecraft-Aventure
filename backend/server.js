@@ -67,7 +67,7 @@ async function sendCraftyCommand(pseudo, targetItem, categorie, customModelData 
                 'Content-Type': 'application/json'
             },
             // Formatage en objet JSON valide attendu par les API standards de serveurs
-            body: JSON.stringify({ command: command }) 
+            body: command
         });
         
         if (!response.ok) {
