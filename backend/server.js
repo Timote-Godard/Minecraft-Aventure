@@ -186,7 +186,7 @@ app.get('/api/inventory', async (req, res) => {
     }
 });
 
-// --- ROUTE POUR DÉSÉQUIPER UN SKIN (Mise à jour directe sur Minecraft) ---
+// --- ROUTE POUR DÉSÉQUIPER UN SKIN ---
 app.post('/api/inventory/unequip', async (req, res) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -198,14 +198,18 @@ app.post('/api/inventory/unequip', async (req, res) => {
         const decoded = jwt.verify(token, JWT_SECRET);
         const uuid = decoded.uuid;
 
-        // On récupère la cible pour savoir ce qu'on déséquipe
         const [itemRows] = await pool.query("SELECT target_item FROM shop_items WHERE id = ?", [itemId]);
         if (itemRows.length === 0) return res.status(404).json({ error: "Objet inconnu." });
+        const target_item = itemRows[0].target_item;
 
+        // 1. Mise à jour pour le site web
         await pool.query(`UPDATE player_inventory SET is_equipped = FALSE WHERE uuid = ? AND item_id = ?`, [uuid, itemId]);
 
-        // 🚀 SYNC EN JEU : On envoie 0 à Crafty pour retirer l'illusion sur cet item précis
-        await sendCraftyCommand(decoded.pseudo, itemRows[0].target_item, 'cosmetique', 0);
+        // 2. Mise à jour pour le mod Minecraft (Synchronisation hors-ligne)
+        await pool.query(`DELETE FROM aventure_cosmetics WHERE uuid = ? AND target_item = ?`, [uuid, target_item]);
+
+        // 3. Application en temps réel si le joueur est connecté
+        await sendCraftyCommand(decoded.pseudo, target_item, 'cosmetique', 0);
 
         res.json({ success: true, message: "Skin retiré avec succès !" });
     } catch (error) {
@@ -214,7 +218,7 @@ app.post('/api/inventory/unequip', async (req, res) => {
     }
 });
 
-// --- ROUTE POUR ÉQUIPER UN SKIN (Mise à jour directe sur Minecraft) ---
+// --- ROUTE POUR ÉQUIPER UN SKIN ---
 app.post('/api/inventory/equip', async (req, res) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -226,13 +230,12 @@ app.post('/api/inventory/equip', async (req, res) => {
         const decoded = jwt.verify(token, JWT_SECRET);
         const uuid = decoded.uuid;
 
-        // 1. On récupère les infos du skin (modèle et cible Minecraft, adieu la catégorie !)
         const [itemRows] = await pool.query("SELECT custom_model_data, target_item FROM shop_items WHERE id = ?", [itemId]);
         if (itemRows.length === 0) return res.status(404).json({ error: "Objet inconnu." });
         
         const { custom_model_data, target_item } = itemRows[0];
 
-        // 2. On déséquipe les autres skins du joueur qui ciblent EXACTEMENT LE MÊME OBJET
+        // 1. Déséquipe sur le site web les anciens objets de la même famille
         await pool.query(`
             UPDATE player_inventory 
             JOIN shop_items ON player_inventory.item_id = shop_items.id 
@@ -240,10 +243,17 @@ app.post('/api/inventory/equip', async (req, res) => {
             WHERE player_inventory.uuid = ? AND shop_items.target_item = ?
         `, [uuid, target_item]);
 
-        // 3. On équipe le nouveau
+        // 2. Équipe le nouvel objet sur le site web
         await pool.query(`UPDATE player_inventory SET is_equipped = TRUE WHERE uuid = ? AND item_id = ?`, [uuid, itemId]);
 
-        // 🚀 SYNC EN JEU : On envoie l'ordre en temps réel à Crafty !
+        // 3. Mise à jour de la table du mod Minecraft (Synchronisation hors-ligne)
+        await pool.query(`
+            INSERT INTO aventure_cosmetics (uuid, target_item, model_data) 
+            VALUES (?, ?, ?) 
+            ON DUPLICATE KEY UPDATE model_data = ?
+        `, [uuid, target_item, custom_model_data, custom_model_data]);
+
+        // 4. Application en temps réel si le joueur est connecté
         await sendCraftyCommand(decoded.pseudo, target_item, 'cosmetique', custom_model_data);
 
         res.json({ success: true, message: "Skin équipé avec succès !" });
