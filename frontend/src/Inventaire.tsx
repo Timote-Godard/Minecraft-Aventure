@@ -71,37 +71,39 @@ export default function Inventaire({ itemsInventory, setItemsInventory, pseudo, 
   const [activeMaterial, setActiveMaterial] = useState<string | null>(null);
 
   const handleEquipToggle = async (item: InventoryItem) => {
-      const isEquipped = item.is_equipped === true || item.is_equipped === 1;
-      const endpoint = !isEquipped ? '/api/inventory/equip' : '/api/inventory/unequip';
+    const isEquipped = item.is_equipped === true || item.is_equipped === 1;
+    
+    // Ajout de l'URL absolue du backend
+    const endpoint = !isEquipped 
+      ? 'https://api-minecraft.timote.ovh/api/inventory/equip' 
+      : 'https://api-minecraft.timote.ovh/api/inventory/unequip';
 
-      try {
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('aventure_token')}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ itemId: item.id })
-        });
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('aventure_token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ itemId: item.id })
+      });
 
-        const data = await response.json();
+      const data = await response.json();
 
-        if (data.success) {
-          // Mise à jour visuelle UNIQUEMENT si le serveur confirme le succès
-          setItemsInventory(prevItems => 
-            prevItems.map(i => i.id === item.id ? { ...i, is_equipped: !isEquipped } : i)
-          );
-        } else {
-          alert(`Erreur : ${data.error}`);
-          if (data.error === "déconnecté" || data.error === "Erreur interne.") {
-            // Gérer la déconnexion si le token est invalide
-            handleLogout();
-          }
+      if (data.success) {
+        setItemsInventory(prevItems => 
+          prevItems.map(i => i.id === item.id ? { ...i, is_equipped: !isEquipped } : i)
+        );
+      } else {
+        alert(`Erreur : ${data.error}`);
+        if (data.error === "déconnecté" || data.error === "Erreur interne.") {
+           handleLogout();
         }
-      } catch (error) {
-        console.error("Erreur de communication avec le serveur", error);
       }
-    };  
+    } catch (error) {
+      console.error("Erreur de communication avec le serveur", error);
+    }
+  };
 
   const getImagePath = (targetItem: string, modelData: number) => {
         if (!targetItem) return '/images/default.webp'; // Sécurité
@@ -277,7 +279,7 @@ export default function Inventaire({ itemsInventory, setItemsInventory, pseudo, 
 
               <div className="w-[6rem] sm:w-[16rem] h-[11rem] sm:h-[26rem] bg-black border-2 border-[#555555] p-1 flex justify-center items-center shadow-inner relative">
                 <img 
-                  src={`https://crafatar.com/renders/body/${pseudo}?overlay=true&scale=10`} 
+                  src={`https://mc-heads.net/body/${pseudo}/160`} 
                   alt={`Skin de ${pseudo}`} 
                   className="h-full object-contain image-rendering-pixelated"
                 />
