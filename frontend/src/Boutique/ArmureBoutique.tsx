@@ -27,7 +27,6 @@ export default function ArmureBoutique({ handleBuyItem, items, getImagePath, ite
   const rightTabs: RightTabConfig[] = [
     { id: 'leather', label: 'Cuir', icon: `${imgPathMat}cuir.webp` },
     { id: 'chainmail', label: 'Mailles', icon: `${imgPathMat}chaine.webp` },
-    { id: 'copper', label: 'Cuivre', icon: `${imgPathMat}cuivre.webp` },
     { id: 'iron', label: 'Fer', icon: `${imgPathMat}fer.webp` },
     { id: 'golden', label: 'Or', icon: `${imgPathMat}or.webp` },
     { id: 'diamond', label: 'Diamant', icon: `${imgPathMat}diamant.webp` },

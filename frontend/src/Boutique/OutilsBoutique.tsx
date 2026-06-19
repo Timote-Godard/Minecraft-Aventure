@@ -27,7 +27,6 @@ export default function OutilsBoutique({ handleBuyItem, items, getImagePath,item
   const rightTabs: RightTabConfig[] = [
     { id: 'wooden', label: 'Bois', icon: `${imgPathMat}bois.webp` },
     { id: 'stone', label: 'Pierre', icon: `${imgPathMat}pierre.webp` },
-    { id: 'copper', label: 'Cuivre', icon: `${imgPathMat}cuivre.webp` },
     { id: 'iron', label: 'Fer', icon: `${imgPathMat}fer.webp` },
     { id: 'golden', label: 'Or', icon: `${imgPathMat}or.webp` },
     { id: 'diamond', label: 'Diamant', icon: `${imgPathMat}diamant.webp` },

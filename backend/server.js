@@ -36,15 +36,27 @@ const dicoEvents = {
 }
 
 // 📡 FONCTION MAGIQUE : Envoie la commande en direct à l'API de Crafty
-async function sendCraftyCommand(pseudo, targetItem, categorie, customModelData = 0) {
+async function sendCraftyCommand(pseudo, targetItem, categorie, customModelData = 0, targets = []) {
     try {
         let command = "";
 
         if (categorie === 'evenementPositif' || categorie === 'evenementNegatif') {
-            command = targetItem.replace('{player}', pseudo);
+            // 1. Remplacer TOUTES les mentions de l'acheteur
+            command = targetItem.replaceAll('{player}', pseudo);
+            
+            // 2. Remplacer les cibles si l'événement en nécessite
+            if (targets && targets.length > 0) {
+                
+                // Pour les événements multi-cibles : {target1}, {target2}, etc.
+                targets.forEach((target, index) => {
+                    command = command.replaceAll(`{target${index + 1}}`, target);
+                });
+                
+                // Pour les événements à cible unique : {target}
+                command = command.replaceAll('{target}', targets[0]);
+            }
         } else {
-            // Remplacez cette ligne par la syntaxe exacte de votre mod pour les skins
-            // Exemple générique :
+            // Commande pour les cosmétiques/équipements
             command = `skin-update ${pseudo} ${targetItem} ${customModelData}`;
         }
         
@@ -288,21 +300,12 @@ app.post('/api/shop/buy', async (req, res) => {
 
         // 2. Traitement selon la catégorie
         if (item.categorie === 'evenementPositif' || item.categorie === 'evenementNegatif') {
-            let finalCommand = item.target_item.replace('{player}', player.pseudo);
             
-            // Traitement dynamique du tableau de joueurs
-            if (targets && targets.length > 0) {
-                // Remplacement strict pour les événements multi-cibles ({target1}, {target2}...)
-                targets.forEach((target, index) => {
-                    finalCommand = finalCommand.replace(`{target${index + 1}}`, target);
-                });
-                
-                // Remplacement générique pour les événements à cible unique ({target})
-                finalCommand = finalCommand.replace('{target}', targets[0]);
-            }
-
-            await sendCraftyCommand(player.pseudo, finalCommand, item.categorie);
-            console.log(`⚡ ÉVÉNEMENT DÉCLENCHÉ : ${finalCommand}`);
+            // On envoie la commande SQL brute (item.target_item) et le tableau des cibles (targets)
+            // L'argument '0' correspond au customModelData (inutile pour un event)
+            await sendCraftyCommand(player.pseudo, item.target_item, item.categorie, 0, targets);
+            console.log(`⚡ ÉVÉNEMENT (${item.categorie}) ACHETÉ par ${player.pseudo} : ${item.nom}`);
+            
         } else {
             // C'est un équipement ou cosmétique : on le range dans son inventaire virtuel
             await pool.query("INSERT IGNORE INTO player_inventory (uuid, item_id, is_equipped) VALUES (?, ?, FALSE)", [uuid, item.id]);
