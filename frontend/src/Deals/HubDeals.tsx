@@ -6,6 +6,9 @@ import MauvaisDeals from "./MauvaisDeals";
 export default function HubDeals({ deals, handleBuyDeal }: { deals: any[]; handleBuyDeal: (itemId: number) => void }) {
     const [sousMenu, setSousMenu] = useState('hub');
 
+    const bonDeals = deals.filter(deal => ['evenementPositif'].includes(deal.categorie));
+    const mauvaisDeals = deals.filter(deal => ['evenementNegatif'].includes(deal.categorie));
+
     const styleDiv = "group relative border-2 border-black h-180 w-full rounded-sm bottom-0 cursor-pointer overflow-hidden";
     
     const styleImg = "w-full h-full object-cover group-hover:scale-105 transition-transform duration-300";
@@ -37,8 +40,8 @@ export default function HubDeals({ deals, handleBuyDeal }: { deals: any[]; handl
                     </>
                     )}
         
-                    {sousMenu === 'bon' && <BonDeals deals={deals} handleBuyDeal={handleBuyDeal} />}
-                    {sousMenu === 'mauvais' && <MauvaisDeals deals={deals} handleBuyDeal={handleBuyDeal} />}
+                    {sousMenu === 'bon' && <BonDeals deals={bonDeals} handleBuyDeal={handleBuyDeal} />}
+                    {sousMenu === 'mauvais' && <MauvaisDeals deals={mauvaisDeals} handleBuyDeal={handleBuyDeal} />}
                     
                 </div>
     )
