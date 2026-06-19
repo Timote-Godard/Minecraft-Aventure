@@ -147,8 +147,7 @@ export default function Inventaire({ itemsInventory, setItemsInventory, pseudo, 
   };
 
   const filteredItems = itemsInventory.filter(item => {
-    console.log('Filtering item:', item.nom, 'with target_item:', item.target_item);
-    const target = item.target_item;
+    const target = item.target_item.replace('minecraft:', '');
     const isSpecialItem = NO_MATERIALS_ITEMS.some(noMat => target.includes(noMat));
 
     if (activeMaterial === null) {
