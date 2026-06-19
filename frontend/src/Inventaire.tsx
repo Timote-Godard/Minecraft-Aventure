@@ -147,6 +147,7 @@ export default function Inventaire({ itemsInventory, setItemsInventory, pseudo, 
   };
 
   const filteredItems = itemsInventory.filter(item => {
+    console.log('Filtering item:', item.nom, 'with target_item:', item.target_item);
     const target = item.target_item;
     const isSpecialItem = NO_MATERIALS_ITEMS.some(noMat => target.includes(noMat));
 
@@ -164,6 +165,7 @@ export default function Inventaire({ itemsInventory, setItemsInventory, pseudo, 
     if (isSpecialItem) return false;
     return target.startsWith(activeMaterial);
   });
+  
 
   const CellFilter = ({ item, filterKey, material }: { item?: InventoryItem | null, filterKey: string, material: string | null }) => {
     const isSelected = activeFilter === filterKey;
@@ -268,8 +270,9 @@ export default function Inventaire({ itemsInventory, setItemsInventory, pseudo, 
 
         <McGuiBox>
           <div className="flex flex-col items-center gap-4 relative z-20 mt-4 sm:mt-2">
-            <div className="flex items-center gap-4 w-full justify-center">
+            <div className="flex items-stretch gap-4 w-full justify-center">
               
+              {/* Colonne de gauche (Définit la hauteur de référence) */}
               <div className="flex flex-col gap-1">
                 <CellFilter item={equipped.helmet} filterKey="helmet" material={activeMaterial} />
                 <CellFilter item={equipped.chestplate} filterKey="chestplate" material={activeMaterial} />
@@ -277,7 +280,8 @@ export default function Inventaire({ itemsInventory, setItemsInventory, pseudo, 
                 <CellFilter item={equipped.boots} filterKey="boots" material={activeMaterial} />
               </div>
 
-              <div className="w-[6rem] sm:w-[16rem] h-[11rem] sm:h-[26rem] bg-black border-2 border-[#555555] p-1 flex justify-center items-center shadow-inner relative">
+              {/* Boîte centrale (Hauteur automatique grâce à items-stretch) */}
+              <div className="w-[6rem] sm:w-[16rem] bg-black border-2 border-[#555555] p-1 flex justify-center items-center shadow-inner relative">
                 <img 
                   src={`https://mc-heads.net/body/${pseudo}/160`} 
                   alt={`Skin de ${pseudo}`} 
@@ -285,7 +289,8 @@ export default function Inventaire({ itemsInventory, setItemsInventory, pseudo, 
                 />
               </div>
 
-              <div className="flex flex-col justify-between h-[11rem] sm:h-[26rem]">
+              {/* Colonne de droite (S'étire et pousse le bouclier en bas via justify-between) */}
+              <div className="flex flex-col justify-between">
                 <div className="flex flex-col gap-1">
                   <CellFilter item={equipped.hat} filterKey="hat" material={activeMaterial} />
                   <CellFilter item={equipped.backpack} filterKey="backpack" material={activeMaterial} />
