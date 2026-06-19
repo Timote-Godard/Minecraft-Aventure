@@ -64,9 +64,10 @@ async function sendCraftyCommand(pseudo, targetItem, categorie, customModelData 
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${CRAFTY_TOKEN}`,
-                'Content-Type': 'application/json' // Crafty attend la commande brute
+                'Content-Type': 'application/json'
             },
-            body: command 
+            // Formatage en objet JSON valide attendu par les API standards de serveurs
+            body: JSON.stringify({ command: command }) 
         });
         
         if (!response.ok) {
