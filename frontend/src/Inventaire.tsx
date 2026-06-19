@@ -114,13 +114,14 @@ export default function Inventaire({ itemsInventory, setItemsInventory, pseudo, 
 
   const getEquippedSlot = (keywords: string[], currentMaterial: string | null) => {
     return itemsInventory.find((i) => {
+      const realTarget = i.target_item.replace('minecraft:', '');
       const isEquip = i.is_equipped === true || i.is_equipped === 1;
-      const matchesType = keywords.some(keyword => isExactMatch(i.target_item, keyword));
+      const matchesType = keywords.some(keyword => isExactMatch(realTarget, keyword));
       if (!isEquip || !matchesType) return false;
 
       if (currentMaterial === null) return true;
 
-      const isSpecialItem = NO_MATERIALS_ITEMS.some(noMat => i.target_item.includes(noMat));
+      const isSpecialItem = NO_MATERIALS_ITEMS.some(noMat => realTarget.includes(noMat));
       if (!isSpecialItem) {
          return i.target_item.startsWith(currentMaterial);
       }
