@@ -66,36 +66,42 @@ const isExactMatch = (target: string, kw: string) => {
   return new RegExp(`(^|_|:)${kw}(_|$)`).test(target);
 };
 
-export default function Inventaire({ itemsInventory, setItemsInventory, pseudo }: { itemsInventory: InventoryItem[]; setItemsInventory: (value: InventoryItem[] | ((prevState: InventoryItem[]) => InventoryItem[])) => void; handleLogout: () => void; pseudo: string }) {
+export default function Inventaire({ itemsInventory, setItemsInventory, pseudo, handleLogout }: { itemsInventory: InventoryItem[]; setItemsInventory: (value: InventoryItem[] | ((prevState: InventoryItem[]) => InventoryItem[])) => void; handleLogout: () => void; pseudo: string }) {
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
   const [activeMaterial, setActiveMaterial] = useState<string | null>(null);
 
-  const handleEquipToggle = (item: InventoryItem) => {
-    const isEquipped = item.is_equipped === true || item.is_equipped === 1;
-    setItemsInventory(prevItems => 
-      prevItems.map(i => i.id === item.id ? { ...i, is_equipped: !isEquipped } : i)
-    );
-    if (!isEquipped) {
-      fetch(`/api/inventory/equip`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('aventure_token')}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ itemId: item.id })
-      });
-    }
-    else {
-      fetch(`/api/inventory/unequip`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('aventure_token')}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ itemId: item.id })
-      });
-    }
-  };
+  const handleEquipToggle = async (item: InventoryItem) => {
+      const isEquipped = item.is_equipped === true || item.is_equipped === 1;
+      const endpoint = !isEquipped ? '/api/inventory/equip' : '/api/inventory/unequip';
+
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('aventure_token')}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ itemId: item.id })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          // Mise à jour visuelle UNIQUEMENT si le serveur confirme le succès
+          setItemsInventory(prevItems => 
+            prevItems.map(i => i.id === item.id ? { ...i, is_equipped: !isEquipped } : i)
+          );
+        } else {
+          alert(`Erreur : ${data.error}`);
+          if (data.error === "déconnecté" || data.error === "Erreur interne.") {
+            // Gérer la déconnexion si le token est invalide
+            handleLogout();
+          }
+        }
+      } catch (error) {
+        console.error("Erreur de communication avec le serveur", error);
+      }
+    };  
 
   const getImagePath = (targetItem: string, modelData: number) => {
         if (!targetItem) return '/images/default.webp'; // Sécurité
