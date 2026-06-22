@@ -5,7 +5,7 @@ const NO_MATERIALS_ITEMS = ['elytra', 'bow', 'crossbow', 'shield', 'trident','ca
 export const filterMinecraftEquipment = (item: ShopItem, activeLeftId: string, activeRightId?: string) => {
   if (!item.target_item) return false;
 
-  const cleanTarget = item.target_item.replace('minecraft:', '');
+  const cleanTarget = item.target_item.replace('minecraft:', '').replace('cosmetic:', 'cosmetiques_');;
 
   if (NO_MATERIALS_ITEMS.includes(cleanTarget)) {
     return activeLeftId === cleanTarget;

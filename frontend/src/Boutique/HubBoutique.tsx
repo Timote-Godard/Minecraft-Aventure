@@ -53,7 +53,7 @@ export default function HubBoutique({ handleBuyItem, items, itemsInventory }: Hu
      const itemsArmurerie = items.filter(item => ['casque', 'plastron', 'pantalon', 'bottes', 'elytre'].includes(item.categorie));
     const itemsCombat = items.filter(item => ['epee', 'arc', 'arbalete', 'bouclier'].includes(item.categorie));
     const itemsOutils = items.filter(item => ['pioche', 'hache', 'pelle', 'houe'].includes(item.categorie));
-    const itemsStyle = items.filter(item => ['chapeau', 'cosmetique'].includes(item.categorie));
+    const itemsStyle = items.filter(item => item.categorie === 'cosmetique');
 
     const styleDiv = "group relative border-2 border-black h-180 w-full rounded-sm bottom-0 cursor-pointer overflow-hidden";
     const styleImg = "w-100 h-full object-cover group-hover:scale-105 transition-transform duration-300"
