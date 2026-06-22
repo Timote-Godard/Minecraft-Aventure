@@ -44,16 +44,18 @@ export default function BaseBoutique({
   const activeLeft = leftTabs[activeLeftIndex];
   const activeRight = rightTabs.length > 0 ? rightTabs[activeRightIndex] : undefined;
 
+  
+  useEffect(() => {
+    console.log("items : ", items);
+  }, [items]);
+
   const alreadyBuyedItem = (item: ShopItem) => {
   return itemsInventory.some(
     (inventoryItem) => 
       inventoryItem.custom_model_data === item.custom_model_data && 
       inventoryItem.target_item === item.target_item
   );
-
-  useEffect(() => {
-    console.log("items : ", items);
-  }, [items]);};
+  };
 
   return (
     <div className="h-full w-full m-0 p-0 flex items-center justify-center">
