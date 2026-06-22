@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ShopItem, InventoryItem } from './types';
 
 // --- TYPES DE CONFIGURATION ---
@@ -50,7 +50,10 @@ export default function BaseBoutique({
       inventoryItem.custom_model_data === item.custom_model_data && 
       inventoryItem.target_item === item.target_item
   );
-};
+
+  useEffect(() => {
+    console.log("items : ", items);
+  }, [items]);};
 
   return (
     <div className="h-full w-full m-0 p-0 flex items-center justify-center">
