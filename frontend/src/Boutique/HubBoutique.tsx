@@ -63,7 +63,7 @@ export default function HubBoutique({ handleBuyItem, items, itemsInventory }: Hu
     const getImagePath = (targetItem: string, modelData: number) => {
         if (!targetItem) return '/images/default.png'; // Sécurité
         if (targetItem === 'carved_pumpkin') return `/images/skins/cosmetiques/${modelData}.webp`; // Cas spécial pour la citrouille sculptée
-        const folderName = targetItem.replace('minecraft:', '').replace(/_/g, '/');
+        const folderName = targetItem.replace('minecraft:', '').replace('cosmetic:', 'cosmetiques/').replace(/_/g, '/');
         return `/images/skins/${folderName}/${modelData}.webp`;
     };
 
