@@ -101,7 +101,8 @@ async function initDB() {
             prix INT NOT NULL,
             custom_model_data INT NOT NULL,
             target_item VARCHAR(100) NOT NULL,
-            categorie ENUM('chapeau', 'evenementPositif', 'evenementNegatif', 'cosmetique', 'epee', 'pioche', 'houe', 'pelle', 'hache', 'bouclier', 'arc', 'arbalete', 'bottes', 'pantalon', 'plastron','casque','elytre') NOT NULL
+            categorie ENUM('chapeau', 'evenementPositif', 'evenementNegatif', 'cosmetique', 'epee', 'pioche', 'houe', 'pelle', 'hache', 'bouclier', 'arc', 'arbalete', 'bottes', 'pantalon', 'plastron','casque','elytre') NOT NULL,
+            UNIQUE KEY unique_item (target_item, custom_model_data)
         )`);
 
         // Sac à dos des joueurs
