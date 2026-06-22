@@ -146,10 +146,6 @@ export default function BaseBoutique({
                     src={getImagePath(item.target_item, item.custom_model_data)} 
                     alt={item.nom} 
                     className="w-full h-full object-contain drop-shadow-md"
-                    onError={(e) => { 
-                      e.currentTarget.onerror = null; 
-                      e.currentTarget.src = '/images/default.png'; 
-                    }} 
                   />
                 </div>
 
